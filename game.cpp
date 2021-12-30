@@ -121,38 +121,37 @@ void Game::apply_nochecks(Action a) {
 
 void Game::compute_valid_actions() {
     const Direction up = m_player_to_move == Color::white ? Direction::up : Direction::down;
-    const int row_first = m_player_to_move == Color::white ? 0 : 7;
-    const int row_last = m_player_to_move == Color::white ? 7 : 0;
-    const int plus_one = m_player_to_move == Color::white ? 1 : -1;
+    const Direction up_left = m_player_to_move == Color::white ? Direction::up_left : Direction::down_left;
+    const Direction up_right = m_player_to_move == Color::white ? Direction::up_right : Direction::down_right;
 
     m_valid_actions.clear();
     auto out = std::back_inserter(m_valid_actions);
 
-    for (int r = row_last; r >= row_first; r -= plus_one) {
-        Row row = Row(r);
-        Column col = Column::a;
-        if (piece_at(col, row) == m_player_to_move) {
-            if (piece_at(col, row + plus_one) == Piece::none)
-                out = make_action(square_at(col, row), square_at(col, row + plus_one));
-            if (piece_at(col + 1, row + plus_one) != m_player_to_move)
-                out = make_action(square_at(col, row), square_at(col + 1, row + plus_one));
+    for (int r = 6; r >= 0; r -= 1) {
+        Square sq = square_at(Column::a, relative(m_player_to_move, r));
+        if (piece_at(sq) == m_player_to_move) {
+            if (piece_at(sq + up) == Piece::none)
+                out = make_action(sq, up);
+            if (piece_at(sq + up_right) != m_player_to_move)
+                out = make_action(sq, up_right);
         }
-        for (Column col = Column::b; col != Column::h; ++col) {
-            if (piece_at(col, row) != m_player_to_move)
+        for (int i=1; i<7; ++i) {
+            ++sq;
+            if (piece_at(sq) != m_player_to_move)
                 continue;
-            if (piece_at(col + -1, row + plus_one) != m_player_to_move)
-                out = make_action(square_at(col, row), square_at(col + -1, row + plus_one));
-            if (piece_at(col, row + plus_one) == Piece::none)
-                out = make_action(square_at(col, row), square_at(col, row + plus_one));
-            if (piece_at(col + 1, row + plus_one) != m_player_to_move)
-                out = make_action(square_at(col, row), square_at(col + 1, row + plus_one));
+            if (piece_at(sq + up_left) != m_player_to_move)
+                out = make_action(sq, up_left);
+            if (piece_at(sq + up) == Piece::none)
+                out = make_action(sq, up);
+            if (piece_at(sq + up_right) != m_player_to_move)
+                out = make_action(sq, up_right);
         }
-        col = Column::h;
-        if (piece_at(col, row) == m_player_to_move) {
-            if (piece_at(col + -1, row + plus_one) != m_player_to_move)
-                out = make_action(square_at(col, row), square_at(col + -1, row + plus_one));
-            if (piece_at(col, row + plus_one) == Piece::none)
-                out = make_action(square_at(col, row), square_at(col, row + plus_one));
+        sq = square_at(Column::h, relative(m_player_to_move, r));
+        if (piece_at(sq) == m_player_to_move) {
+            if (piece_at(sq + up) == Piece::none)
+                out = make_action(sq, up);
+            if (piece_at(sq + up_left) != m_player_to_move)
+                out = make_action(sq, up_left);
         }
     }
 }

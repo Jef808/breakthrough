@@ -114,23 +114,12 @@ constexpr Row& operator-=(Row& r, int i) {
   assert(0 <= to_integral(r) - i && to_integral(r) - i <= 7);
   return r = Row(to_integral(r) - 1);
 }
-/// 010 <-> 101, 110 <-> 001, etc...
-constexpr Row relative(Color c, Row r) {
-  return Row(to_integral(r) ^ (7 * to_integral(c)));
-}
 constexpr Column& operator++(Column& c) {
   assert(c < Column::h);
   return c = Column(to_integral(c) + 1);
 }
 constexpr Column operator+(Column c, int i) {
   return Column(to_integral(c) + i);
-}
-/// Same thing applied to the row
-constexpr Square relative(Color c, Square s) {
-   return Square(to_integral(s) ^ ((7 << 3) * to_integral(c)));
-}
-constexpr Square relative_square_at(Color c, int col, int row) {
-  return Square(col + (row << 3) ^ (56 * to_integral(c)));
 }
 /**
  * Operations for actions
@@ -153,6 +142,27 @@ constexpr Direction direction_of(Action a) {
 /// If (Row of to_square) < (Row of from_square), then Color is black.
 constexpr Color player_of(Action a) {
   return Color(((uint16_t)a >> 11) < (((uint16_t)a & 0x3f) >> 3));
+}
+/**
+ * Relative data.
+ *
+ * Flip the board vertically if given ~Color~ is ~Color::black~, otherwise do nothing.
+ */
+/// 010 <-> 101, 110 <-> 001, etc...
+constexpr Row relative(Color c, Row r) {
+  return Row(to_integral(r) ^ (7 * to_integral(c)));
+}
+constexpr Row relative(Color c, int r) {
+  return Row(r ^ (7 * to_integral(c)));
+}
+constexpr Square relative(Color c, Square s) {
+   return Square(to_integral(s) ^ ((7 << 3) * to_integral(c)));
+}
+constexpr Action relative(Color c, Action a) {
+  return make_action(relative(c, from_square(a)), relative(c, to_square(a)));
+}
+constexpr Square relative_square_at(Color c, int col, int row) {
+  return Square(col + (row << 3) ^ (56 * to_integral(c)));
 }
 
 /**

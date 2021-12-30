@@ -227,3 +227,4 @@ int main() {
 #+end_src
 * Step 2
 As a second step, we will implement a naive rule-based agent which will add some strategical logic to the random agent we developped entry 1. We will base some of those rules on [[file:~/projects/breakthrough/litterature/Basic_Introduction_to_Breakthrough.pdf][Basic Introduction to Breakthrough]].
+**

@@ -25,27 +25,19 @@ struct CmpActionsTest {
     }
 };
 
-bool equal_as_sets(std::vector<Action>& vec1, std::vector<Action>& vec2) {
-    std::sort(vec1.begin(), vec1.end(), CmpActionsTest{});
-    std::sort(vec2.begin(), vec2.end(), CmpActionsTest{});
-
-    if (vec1 != vec2) {
-        std::cerr << "WARNING: Actions don't match:\nGame actions:\n    ";
-        for (auto action : vec1) {
-            std::cerr << string_of(action) << ' ';
-        }
-        std::cerr << std::endl;
-        std::cerr << "My actions:\n    ";
-        for (auto action : vec2) {
-            std::cerr << string_of(action) << ' ';
-        }
-        std::cerr << std::endl;
-        return false;
-    }
-    return true;
+void output_error(const std::vector<Action>& ga, const std::vector<Action>& ma, std::ostream& out) {
+    std::cerr << "Test failed:\nGameActions:\n    ";
+    for (auto action : ga)
+        std::cerr << string_of(action) << ' ';
+    std::cerr << std::endl << "My actions:\n    ";
+    for (auto action : ma)
+    std::cerr << string_of(action) << ' ';
+    std::cerr << std::endl;
 }
 
 int main() {
+    std::ios_base::sync_with_stdio(false);
+
     Game game;
     Agent agent(game);
 
@@ -56,11 +48,11 @@ int main() {
         game.compute_valid_actions();
         auto my_actions = game.valid_actions();
 
-        bool actions_ok = equal_as_sets(game_actions, my_actions);
+        std::sort(game_actions.begin(), game_actions.end(), CmpActionsTest{});
+        std::sort(my_actions.begin(), my_actions.end(), CmpActionsTest{});
 
-        if (!actions_ok) {
-            std::cerr << "Valid actions not same as game's input!"
-                << std::endl;
+        if (game_actions != my_actions) {
+            output_error(game_actions, my_actions, std::cerr);
             return EXIT_FAILURE;
         }
 
