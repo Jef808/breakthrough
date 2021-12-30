@@ -1,0 +1,226 @@
+#+TITLE: Breakthrough - pt. 1
+#+SETUPFILE: https://fniessen.github.io/org-html-themes/org/theme-readtheorg.setup
+* Breakthrough
+In a series of posts, I will try to document my progress as I build a bot for playing [[https://en.wikipedia.org/wiki/Breakthrough_(board_game)][Breakthrough]].
+Note that I am far from an expert.
+Aside from hopefully getting some feedback on my code and inspire less experimented people to try their hand at writing some code, I simply think it will help me learn to organise myself better, benchmark my ideas and overall go slower but steadier than usual.
+I will use =C++= to write the bot itself but my goal is to use =Python= scripts to test and tune the main program.
+** Codingame
+If you are not familiar with the wonderful platform [[https://www.codingame.com][CodinGame]], do yourself a favor and go explore it.
+CodinGame is not your typical "competitive programming" website.
+You can either try your hand at one of their hundreds of puzzles presented as incredibly well-crafted single-player games, lots of them being just as beautifully animated.
+If that wasn't enough to convince you, they also offer /Arenas/ to play in very active multiplayer games!
+Some of them are truly deep and rich, where the designers evidently put in months of efforts before releasing.
+As you make your bot more and more sofisticated, you can watch it play in real-time against the other players' latest submissions.
+
+In one of the user contributed arenas, thanks to user =darkhorse64=, you can battle it out in a game of breakthrough.
+It is not the most active arena (still, there are about 230 entries at this moment), but the fact is that it is simple enough a game to make quick progress, while making the immensity of all of Chess engine litterature relevant. It is definitely a good place to learn.
+*** The rules
+Here are the rules of the game as presented on CodinGame:
+#+begin_quote
+1. The game is a two player game played on a 8x8 board, each player has 16 pieces.
+2. At the begining, the two bottom rows (for White) and the two top rows (for Black) of the board are filled with pieces. White makes the first move.
+2. A piece may move one space straight or diagonally forward if the target square is none.
+3. A piece may move into a square containing an opponent's piece if and only if that square is one step diagonally forward. The opponent's piece is removed and the player's piece replaces it.
+4. Note that capturing is not compulsory, nor is it "chained" as in checkers.
+5. The winner is the first player to reach their opponent's home row, or to capture all of their pieces.
+#+end_quote
+*** How it works
+In order to play against your opponents, you interact with the online /game manager/ using a redirected standard in and standard out:
+For each turn, you receive your *turn input* through standard in:
+#+begin_quote
+*Input per game turn*
+- First line: The last move of your opponent or "None" if you start the game and it is your move
+- Next line: Number ~N~ of legal moves as an integer
+- Next ~N~ lines: The legal moves as strings
+*Output per game turn*
+- A single line: Your move
+
+*Formatting*
+Actions are encoded as strings by two squares: the current square of the piece followed by its destination square.
+For example, ~c2c3~ represents moving a piece from the ~c2~ square to the ~c3~ square, etc...
+
+*Constraints*
+The response time for the first turn must be ≤ $1000$ milliseconds.
+The response time for the following turns must be ≤ $100$ milliseconds.
+#+end_quote
+** First steps
+So we start by writing the necessary boilerplate code to be able to interact with the game.
+For now, I won't try to optimize much and will instead aim for a design that will let me run tests and benchmarks as easily as possible, as well as being easy to refactor and specialize once those benchmarks start kicking in.
+*** Types header
+I like to have a header with the basic types and constants on their own.
+It both unclutters the main classes and makes it easier to tweak the game parameters and change my mind on the basic types that everything else depend on.
+This typically will get included in every compilation unit.
+So something like the following:
+#+begin_src c++ :export code
+constexpr int width = 8;
+constexpr int height = 8;
+constexpr int Nsquares = 64;
+constexpr int max_n_moves = 48;
+constexpr int max_depth = 256;
+
+enum class Color : char {
+    white = 0,
+    black = 1
+};
+
+enum class Piece : char {
+    white = 0,
+    black = 1,
+    none = 0,
+};
+
+enum class Column : char {
+    a=0, b=1, c=2, d=3, e=4, f=5, g=6, h=7
+};
+
+enum class Row : char {
+    one=0, two=1, three=2, four=3, five=4, six=5, seven=6, eight=7
+};
+
+enum class Square {
+    a1=0 , b1=1 , c1=2 , d1=3 , e1=4 , f1=5 , g1=6 , h1=7 ,
+    a2=8 , b2=9 , c2=10, d2=11, e2=12, f2=13, g2=14, h2=15,
+    a3=16, b3=17, c3=18, d3=19, e3=20, f3=21, g3=22, h3=23,
+    a4=24, b4=25, c4=26, d4=27, e4=28, f4=29, g4=30, h4=31,
+    a5=32, b5=33, c5=34, d5=35, e5=36, f5=37, g5=38, h5=39,
+    a6=40, b6=41, c6=42, d6=43, e6=44, f6=45, g6=46, h6=47,
+    a7=48, b7=49, c7=50, d7=51, e7=52, f7=53, g7=54, h7=55,
+    a8=56, b8=57, c8=58, d8=59, e8=60, f8=61, g8=62, h8=63,
+};
+
+enum class Direction {
+    up   = width,
+    right= 1,
+    left = -1,
+    down = -width,
+
+    up_right  = up   + right,
+    down_right= right+ down,
+    down_left = down + left,
+    up_left   = left + up,
+};
+
+enum class Action : uint16_t {
+    none = 0,
+    invalid = 257
+};
+#+end_src
+
+Note that even though there are $64$ squares (so a ~Square~ could fit in a ~uint8_t~) we let the underlying type be the default ~int~. This is because we will often add (and substract) a ~Direction~ to a ~square~.
+So just to be safe (and avoid a bunch of conversions every time we add a ~Square~ and a ~Direction~, we let them be of type ~int~).
+We can benchmark the difference in underlying type later anyway.
+The Squares are all labeled to avoid any confusion (we could have chosen to enumerate them column-wise instead of by rows, or to start at ~h1~ instead of ~a1~ etc...).
+Notice that this way, the $3$ least significant bits of a ~Square~ are its ~Row~ and the next $3$ bits are its ~Column~.
+The fact that the board is $8 \times 8$ really makes things nice for us, $7$ is really a magical number! For example, notice that in binary representation, the rows are ~000~, ~001~, ~010~, ~011~, ~100~, ~101~, ~110~, ~111~.
+If you look carefully, you'll notice that they are symmetric around the middle, except with all bits switched.
+So to flip the board vertically, it suffices to send a row ~r~ to ~r ^ 7~.
+We will use that observation to implement all methods as if the active player is always White, avoiding lots of branching and if/else gymnastic.
+
+For the ~Action~ enum, we do try and pack it as much as possible because when we eventually implement a hash table, we will use them as part of the keys.
+Thinking of a ~Square~ as a byte (pad the row/col representation with two ~0~ bits at the end), an ~Action~ will be the concatenation of the two bytes comprising of the source ~Square~ and the destination ~Square~.
+For example, the action ~b3c4~ is represented as the hex character ~\x11\x1a~.
+Note that $0$ corresponds to ~\x00\x00~ and $257$ to ~\x01\x01~, which are invalid moves since the source and destination squares are the same.
+That's why we can use them as special values.
+
+The downside of using scoped enums instead of good old enums is that they aren't implicitely convertible to their underlying type, so we have to write a bunch of boilerplate code to manipulate them, relying on the generic template function
+#+begin_src c++ :export code
+template<class E>
+constexpr auto to_integral(E e) {
+  return static_cast<std::underlying_type_t<E>>(e);
+}
+#+end_src
+to convert the enum to its integral type in order to perform the transformations.
+
+*** Game class
+We need two other basic header files.
+The first one will be for a ~Game~ class, which will store the board as an array of ~Piece~, implement the rules as well as the correct I/O behavior to interact with CodinGame, and a number of helper functions to query the status of the game at any point.
+
+#+begin_src c++ :export code
+class Game {
+public:
+    Game();
+    void turn_input(std::istream&);
+    std::string_view view() const;
+    bool apply(Action);
+    void compute_valid_actions();
+    const std::vector<Action>& valid_actions() const;
+
+private:
+    std::array<Piece, width * height> m_board;
+    std::vector<Action> m_valid_actions;
+    int m_ply;
+    Color m_player_to_move;
+};
+#+end_src
+
+For now, we will simply implement what's there and write a test to see if ~compute_valid_actions~ results in the same as what the CodinGame server sends us every turn.
+
+I'll also write a few inline methods in =game.h= to make the implementation more readable and catch bugs. Things like
+#+begin_src c++ :export code
+constexpr Piece Game::piece_at(int row, int col) const;
+constexpr Piece& Game::piece_at(Square s);
+#+end_src
+implementing the basic arithmetic of looking up pieces.
+This way, if we ever change how the board is stored (switching to bitboards, adding padding around the edges, etc...), we will only have to change those functions.
+
+*** Agent class
+The second one is for an ~Agent~ class. It will contain a reference to a ~Game~ object and implement the decision making process.
+#+begin_src c++ :export code
+class Agent {
+public:
+    Agent(Game&);
+    Action best_action();
+private:
+    Game& m_game;
+};
+#+end_src
+For now, best_action will output a random action from ~m_game.valid_actions()~.
+
+*** Implementation
+We first need methods that convert back and forth between a ~string~ like ~"e4"~ into ~Square::e4~ and vice-versa, same with actions.
+I will place that in =types.h= header since I want it to contain all the operations and convertions we want for our basic enums.
+There is some gymnastic to do for converting to and from chars, for example the methods to convert to and from ~string~ to ~Square~ are respectively given by
+#+begin_src c++ :export code
+constexpr Square square_of(std::string_view sv) {
+  return Square((sv[0] - 97) + width * (sv[1] - 49));
+}
+
+inline std::string string_of(Square s) {
+  static std::string sret(2, '\0');
+  int as_int = static_cast<int>(s);
+  sret[0] = (as_int & 7) + 97;   // col
+  sret[1] = (as_int >> 3) + 49;  // row
+  return sret;
+}
+#+end_src
+It's all pretty straightforward if you don't try to optimize too much. I had a bunch of bugs because I kept switching the ~row~ and ~col~ parameters inside of functions, but eventually everything worked.
+I ran the following loop to check that everything was right, and yep!
+#+begin_src c++ :export code
+int main() {
+    Game game;
+    Agent agent(game);
+
+    while (true) {
+        game.turn_input(std::cin);
+
+        auto game_actions = game.valid_actions();
+        game.compute_valid_actions();
+        auto my_actions = game.valid_actions();
+
+        bool actions_ok = equal_as_sets(game_actions, my_actions);
+
+        if (!actions_ok) {
+            std::cerr << "Valid actions not same as game's input!"
+                << std::endl;
+            return EXIT_FAILURE;
+        }
+
+        Action action = agent.best_action();
+        std::cout << string_of(action) << std::endl;
+        game.apply(action);
+    }
+
+    return EXIT_SUCCESS;
+}
+#+end_src
