@@ -23,9 +23,36 @@ target_link_libraries(agent bt)
 add_executable(main main.cpp)
 target_link_libraries(main bt agent)
 
+add_custom_target(
+  bundle_main
+  COMMAND scripts/bundler.py scripts/main_sources.txt
+  DEPENDS main
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/btbundled.cpp
+)
+
 add_custom_command(
   TARGET main POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E create_symlink ${data_dir} data
   COMMAND ${CMAKE_COMMAND} -E create_symlink ${scripts_dir} scripts
-  COMMAND ${CMAKE_CURRENT_BINARY_DIR}/scripts/bundler.py
+)
+
+############################################################
+# Tests
+############################################################
+add_executable(test_actionsgen tests/actions_gen.cpp)
+target_link_libraries(test_actionsgen bt agent)
+
+add_custom_target(
+  bundle_actionsgen_test
+  COMMAND scripts/bundler.py scripts/test_actionsgen_sources.txt
+  DEPENDS test_actionsgen
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/btbundled.cpp
+)
+
+add_custom_command(
+  TARGET bundle_actionsgen_test POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E create_symlink ${data_dir} data
+  COMMAND ${CMAKE_COMMAND} -E create_symlink ${scripts_dir} scripts
 )

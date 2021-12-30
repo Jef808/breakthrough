@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
+import sys
+
 project_dir = '~/code/projects/codinGame/breakthrough'
+sources_file = sys.argv[1]
 files = []
-with open('scripts/sources.txt') as sources:
+with open(sources_file) as sources:
     for source in sources.readlines():
         files.append(f"../{format(source.strip())}")
 output = 'btbundled.cpp'

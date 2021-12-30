@@ -1,10 +1,11 @@
-#+TITLE: Breakthrough - pt. 1
+#+TITLE: Breakthrough
 #+SETUPFILE: https://fniessen.github.io/org-html-themes/org/theme-readtheorg.setup
-* Breakthrough
-In a series of posts, I will try to document my progress as I build a bot for playing [[https://en.wikipedia.org/wiki/Breakthrough_(board_game)][Breakthrough]].
+In a series of posts, I will try to document my progress as I build a bot for playing [[https://en.wikipedia.org/wiki/Breakthrough_(board_game)][Breakthrough]] on [[https://www.codingame.com][CodinGame]].
 Note that I am far from an expert.
 Aside from hopefully getting some feedback on my code and inspire less experimented people to try their hand at writing some code, I simply think it will help me learn to organise myself better, benchmark my ideas and overall go slower but steadier than usual.
 I will use =C++= to write the bot itself but my goal is to use =Python= scripts to test and tune the main program.
+* Step 1
+As a first step, we implement basic unoptimized code needed to succesfully play the game using random actions.
 ** Codingame
 If you are not familiar with the wonderful platform [[https://www.codingame.com][CodinGame]], do yourself a favor and go explore it.
 CodinGame is not your typical "competitive programming" website.
@@ -224,3 +225,5 @@ int main() {
     return EXIT_SUCCESS;
 }
 #+end_src
+* Step 2
+As a second step, we will implement a naive rule-based agent which will add some strategical logic to the random agent we developped entry 1. We will base some of those rules on [[file:~/projects/breakthrough/litterature/Basic_Introduction_to_Breakthrough.pdf][Basic Introduction to Breakthrough]].
