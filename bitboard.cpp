@@ -3,8 +3,13 @@
 
 namespace BB {
 
-void init() {
+Bitboard Square[Nsquares];
+Bitboard Attacks[Ncolors][Nsquares];
+Bitboard Defenders[Ncolors][Nsquares];
+Bitboard Forward[Ncolors][Nsquares];
+Bitboard Span[Ncolors][Nsquares];
 
+void init() {
 
     for (enum Square s = Square::a1; s < Square::Nb; ++s) {
         // BB::Square

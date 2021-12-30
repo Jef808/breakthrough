@@ -9,12 +9,14 @@
 constexpr int width = 8;
 constexpr int height = 8;
 constexpr int Nsquares = 64;
+constexpr int Ncolors = 2;
 constexpr int max_n_moves = 48;
 constexpr int max_depth = 256;
 
 enum class Color : uint8_t {
     white = 0,
-    black = 1
+    black = 1,
+    Nb    = 2
 };
 
 enum class Piece : uint8_t {
@@ -32,6 +34,7 @@ enum class Square {
     a6=40, b6=41, c6=42, d6=43, e6=44, f6=45, g6=46, h6=47,
     a7=48, b7=49, c7=50, d7=51, e7=52, f7=53, g7=54, h7=55,
     a8=56, b8=57, c8=58, d8=59, e8=60, f8=61, g8=62, h8=63,
+    Nb = 64
 };
 
 enum class Column : char {
@@ -93,11 +96,11 @@ constexpr Square operator+(Square s, Direction dir) {
   return Square(static_cast<int>(s) + static_cast<int>(dir));
 }
 constexpr Square& operator++(Square& s) {
-  assert(s < Square::h8);
+  assert(s < Square::Nb);
   return s = Square(to_integral(s) + 1);
 }
 constexpr Square& operator+=(Square& s, int i) {
-  assert(0 <= to_integral(s) && to_integral(s) + i <= 63);
+  assert(0 <= to_integral(s) && to_integral(s) + i < Nsquares);
   return s = Square(to_integral(s) + i);
 }
 constexpr Row operator+(Row r, int i) {
@@ -160,6 +163,9 @@ constexpr Square relative(Color c, Square s) {
 }
 constexpr Action relative(Color c, Action a) {
   return make_action(relative(c, from_square(a)), relative(c, to_square(a)));
+}
+constexpr Direction relative(Color c, Direction d) {
+  return Direction(to_integral(d) * (1 - 2 * to_integral(c)));
 }
 constexpr Square relative_square_at(Color c, int col, int row) {
   return Square(col + (row << 3) ^ (56 * to_integral(c)));

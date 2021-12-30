@@ -38,6 +38,8 @@ void output_error(const std::vector<Action>& ga, const std::vector<Action>& ma, 
 int main() {
     std::ios_base::sync_with_stdio(false);
 
+    BB::init();
+
     Game game;
     Agent agent(game);
 

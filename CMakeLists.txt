@@ -14,7 +14,7 @@ set(breakthrough_dir ${CMAKE_SOURCE_DIR})
 set(data_dir ${breakthrough_dir}/data)
 set(scripts_dir ${breakthrough_dir}/scripts)
 
-add_library(bt game.cpp)
+add_library(bt game.cpp bitboard.cpp)
 target_include_directories(bt PUBLIC ${breakthrough_dir})
 
 add_library(agent agent.cpp)

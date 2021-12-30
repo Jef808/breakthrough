@@ -6,20 +6,15 @@
 #include <string>
 #include <string_view>
 
+#include "bitboard.h"
 #include "game.h"
 
 Game::Game() {
-    m_board.fill(Piece::none);
-    for (int row : { 0, 1 }) {
-        for (int col = 0; col < 8; ++col) {
-            m_board[col + (row << 3)] = Piece::white;
-        }
-    }
-    for (int row : { 6, 7 }) {
-        for (int col = 0; col < 8; ++col) {
-            m_board[col + (row << 3)] = Piece::black;
-        }
-    }
+    std::fill_n(std::begin(m_board), 16, Piece::white);
+    std::fill_n(std::begin(m_board) + 16, 32, Piece::none);
+    std::fill_n(std::begin(m_board) + 48, 16, Piece::black);
+    by_color[to_integral(Color::white)] = (row_bb(Row::one) | row_bb(Row::two));
+    by_color[to_integral(Color::black)] = (row_bb(Row::eight) | row_bb(Row::seven));
     m_ply = 0;
     m_player_to_move = Color::white;
 }
@@ -28,17 +23,14 @@ void Game::turn_input(std::istream& ins) {
     static std::string buf;
     int n_legal_moves;
     buf.clear();
+    m_valid_actions.clear();
     std::getline(ins, buf);
-
     if (buf != "None") {
         Action move = action_of(buf);
         apply(move);
     }
-
     ins >> n_legal_moves;
     ins.ignore();
-
-    m_valid_actions.clear();
     for (int i = 0; i < n_legal_moves; ++i) {
         std::getline(ins, buf);
         m_valid_actions.push_back(action_of(buf));
@@ -72,86 +64,90 @@ std::string_view Game::view() const {
         << m_player_to_move
         << " to play\n";
 
-    for (int row = height - 1; row >= 0; --row) {
-        out << row + 1 << "  ";
-        for (int col = 0; col < width; ++col) {
-            out << piece_at(col, row);
+    for (int r = to_integral(Row::eight); r >= 0; --r) {
+        out << r + 1 << "  ";
+        for (Square sq = square_at(Column::a, Row(r)); sq <= square_at(Column::h, Row(r)); ++sq) {
+            out << piece_at(sq);
         }
         out << '\n';
     }
     out << "   ";
-    for (int col = 0; col < width; ++col) {
-        char c = col + 97;
-        out << ' ' << c << ' ';
+    for (int c = 0; c < width; ++c) {
+        char ch = c + 97;
+        out << ' ' << ch << ' ';
     }
-    out << '\n'
-        << std::endl;
+    out << '\n' << std::endl;
 
     view_buf = out.str();
-
     return view_buf;
 }
 
 
-bool Game::apply(Action a) {
+void Game::apply(Action a) {
     Square from = from_square(a);
     Square to = to_square(a);
     Piece p = piece_at(from);
 
-    if (p != m_player_to_move)
-        return false;
-    if (column_of(to) == column_of(from) && piece_at(to) != Piece::none)
-        return false;
-    remove_piece(from);
-    put_piece(p, to);
+    assert(piece_at(from) == m_player_to_move);
+    assert(piece_at(to) != m_player_to_move);
+    assert(is_empty(to) || column_of(to) != column_of(from));
 
-    m_player_to_move = opposite_of(m_player_to_move);
-    ++m_ply;
-    return true;
-}
+    if (!is_empty(to))
+        remove_piece(to);
 
-void Game::apply_nochecks(Action a) {
-    Piece p = piece_at(from_square(a));
-    remove_piece(from_square(a));
-    put_piece(p, to_square(a));
-
+    move_piece(from, to);
     m_player_to_move = opposite_of(m_player_to_move);
     ++m_ply;
 }
 
 void Game::compute_valid_actions() {
-    const Direction up = m_player_to_move == Color::white ? Direction::up : Direction::down;
-    const Direction up_left = m_player_to_move == Color::white ? Direction::up_left : Direction::down_left;
-    const Direction up_right = m_player_to_move == Color::white ? Direction::up_right : Direction::down_right;
-
+    Bitboard pcs = pieces(m_player_to_move);
     m_valid_actions.clear();
-    auto out = std::back_inserter(m_valid_actions);
-
-    for (int r = 6; r >= 0; r -= 1) {
-        Square sq = square_at(Column::a, relative(m_player_to_move, r));
-        if (piece_at(sq) == m_player_to_move) {
-            if (piece_at(sq + up) == Piece::none)
-                out = make_action(sq, up);
-            if (piece_at(sq + up_right) != m_player_to_move)
-                out = make_action(sq, up_right);
-        }
-        for (int i=1; i<7; ++i) {
-            ++sq;
-            if (piece_at(sq) != m_player_to_move)
-                continue;
-            if (piece_at(sq + up_left) != m_player_to_move)
-                out = make_action(sq, up_left);
-            if (piece_at(sq + up) == Piece::none)
-                out = make_action(sq, up);
-            if (piece_at(sq + up_right) != m_player_to_move)
-                out = make_action(sq, up_right);
-        }
-        sq = square_at(Column::h, relative(m_player_to_move, r));
-        if (piece_at(sq) == m_player_to_move) {
-            if (piece_at(sq + up) == Piece::none)
-                out = make_action(sq, up);
-            if (piece_at(sq + up_left) != m_player_to_move)
-                out = make_action(sq, up_left);
+    while (pcs) {
+        Square sq = pop_lsb(pcs);
+        Bitboard free_ahead = forward_bb(m_player_to_move, sq) & no_pieces();
+        if (free_ahead)
+            m_valid_actions.push_back(make_action(sq, lsb(free_ahead)));//relative(m_player_to_move, Direction::up)));
+        Bitboard sides_free = attacks_bb(m_player_to_move, sq) & ~pieces(m_player_to_move);
+        while (sides_free) {
+            m_valid_actions.push_back(make_action(sq, pop_lsb(sides_free)));
         }
     }
 }
+
+// void Game::compute_valid_actions() {
+//     const Direction up = m_player_to_move == Color::white ? Direction::up : Direction::down;
+//     const Direction up_left = m_player_to_move == Color::white ? Direction::up_left : Direction::down_left;
+//     const Direction up_right = m_player_to_move == Color::white ? Direction::up_right : Direction::down_right;
+
+//     m_valid_actions.clear();
+//     auto out = std::back_inserter(m_valid_actions);
+
+//     for (int r = 6; r >= 0; r -= 1) {
+//         Square sq = square_at(Column::a, relative(m_player_to_move, r));
+//         if (piece_at(sq) == m_player_to_move) {
+//             if (piece_at(sq + up) == Piece::none)
+//                 out = make_action(sq, up);
+//             if (piece_at(sq + up_right) != m_player_to_move)
+//                 out = make_action(sq, up_right);
+//         }
+//         for (int i=1; i<7; ++i) {
+//             ++sq;
+//             if (piece_at(sq) != m_player_to_move)
+//                 continue;
+//             if (piece_at(sq + up_left) != m_player_to_move)
+//                 out = make_action(sq, up_left);
+//             if (piece_at(sq + up) == Piece::none)
+//                 out = make_action(sq, up);
+//             if (piece_at(sq + up_right) != m_player_to_move)
+//                 out = make_action(sq, up_right);
+//         }
+//         sq = square_at(Column::h, relative(m_player_to_move, r));
+//         if (piece_at(sq) == m_player_to_move) {
+//             if (piece_at(sq + up) == Piece::none)
+//                 out = make_action(sq, up);
+//             if (piece_at(sq + up_left) != m_player_to_move)
+//                 out = make_action(sq, up_left);
+//         }
+//     }
+// }
