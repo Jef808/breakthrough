@@ -189,35 +189,65 @@ std::pair<bool, Action> defend_critical(const Game& game, Square th) {
     return std::make_pair(found_counter, action);
 }
 
+double rollout(Game& game, Action a) {
+
+    StateData sd{};
+    game.apply(a, sd);
+
+    if (game.is_lost())
+        // Report a winning score, weighted by the game ply.
+        // We put a big weight so that we don't return scores
+        // less than 0.5 even for very long winning lines.
+        game.undo(a);
+        return 1.0 - game.ply() / 300.0;
+
+    game.compute_valid_actions();
+    Action action = random_choice(game.valid_actions());
+
+    // A win changes from 0.0 to 1.0 at each ply!
+    double reward = 1.0 - rollout(game, action);
+
+    game.undo(a);
+    return reward;
+}
+
+double sample(Game& game, Action a, int n=1) {
+    double ret = 0;
+    for (int i=0; i<n; ++i)
+        ret += rollout(game, a);
+    return ret;
+}
+
 /**
  * Perform a random playout and return true iff ~game_.player_to_move()~ won.
  */
-double sample(const Game& game_, Action a, int n=1) {
-    const Color us = game_.player_to_move();
-    const Color them = opposite_of(us);
-    double ret = 0;
-    static std::vector<Action> actions;
+// double sample(Game& game, Action a, int n=1) {
 
-    for (int i=0; i<n; ++i) {
-        Game game = game_;
-        Action action = a;
-        game.apply(action);
+//     const Color us = game.player_to_move();
+//     const Color them = opposite_of(us);
+//     double ret = 0;
+//     static std::vector<Action> actions;
 
-        int init_ply = game.ply();
 
-        while (!game.is_lost()) {
-            game.compute_valid_actions();
-            actions = game.valid_actions();
+//     for (int i=0; i<n; ++i) {
+//         Action action = a;
+//         game.apply(action);
 
-            action = random_choice(actions);
-            game.apply(action);
-        }
+//         int init_ply = game.ply();
 
-        // At this point the game is over
-        ret += (game.player_to_move() != us) * (1 - (game.ply() - init_ply) / 150.0);
-    }
-    return ret;
-}
+//         while (!game.is_lost()) {
+//             game.compute_valid_actions();
+//             actions = game.valid_actions();
+
+//             action = random_choice(actions);
+//             game.apply(action);
+//         }
+
+//         // At this point the game is over
+//         ret += (game.player_to_move() != us) * (1 - (game.ply() - init_ply) / 150.0);
+//     }
+//     return ret;
+// }
 
 /**
  * Leaves the action with the best static evaluation at index 0.
@@ -233,15 +263,16 @@ void Agent::setup_rootactions() {
     double best_score = 0.0;
 
     for (auto& ra : root_actions) {
-        Game game = m_game;
-        game.apply(ra);
-        ra.prior = 1.0 - static_eval(game);
+        StateData sd{};
+        m_game.apply(ra, sd);
+        ra.prior = 1.0 - static_eval(m_game);
         ra.total_value = 0;
         ra.n_visits = 1;
         if (ra.prior > best_score) {
             best_ra = &ra;
             best_score = ra.prior;
         }
+        m_game.undo(ra);
     }
 
     std::swap(root_actions[0], *best_ra);

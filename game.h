@@ -20,7 +20,7 @@ class Game {
 public:
     Game();
     static void init();
-    void turn_input(std::istream&);
+    void turn_input(std::istream&, StateData& sd);
     std::string_view view() const;
     void apply(Action, StateData& sd);
     void undo(Action a);

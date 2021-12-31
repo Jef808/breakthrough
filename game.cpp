@@ -45,17 +45,16 @@ Game::Game() {
 
 void Game::init() {
     std::random_device rd;
-    std::mt19937 eng(rd());
-    std::uniform_int_distribution<uint32_t> dist(0, std::numeric_limits<uint32_t>::max() - 1);
+    std::mt19937 eng{rd()};
 
-    std::generate(std::begin(Zobrist::keyTable), std::end(Zobrist::keyTable), [&](){
-        return dist(eng);
-    });
+    for (int i=0; i<Ncolors; ++i)
+        for (int j=0; j<Nsquares; ++j)
+            Zobrist::keyTable[i][j] = eng();
 
-    Zobrist::side = dist(eng);
+    Zobrist::side = eng();
 }
 
-void Game::turn_input(std::istream& ins) {
+void Game::turn_input(std::istream& ins, StateData& sd) {
     static std::string buf;
     int n_legal_moves;
     buf.clear();
@@ -63,7 +62,7 @@ void Game::turn_input(std::istream& ins) {
     std::getline(ins, buf);
     if (buf != "None") {
         Action move = action_of(buf);
-        apply(move);
+        apply(move, sd);
     }
     ins >> n_legal_moves;
     ins.ignore();
