@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "game.h"
-#include "agent.h"
+#include "epsilonGreedy.h"
 
 constexpr double epsilon = 0.3;
 constexpr int n_iterations = 5000;

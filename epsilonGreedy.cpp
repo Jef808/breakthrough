@@ -1,5 +1,8 @@
+/// TODO: Extract as many hard-coded feature into a configurable parameter
+/// and write a helper script to tune them automatically.
+
 #include "types.h"
-#include "agent.h"
+#include "epsilonGreedy.h"
 #include "bitboard.h"
 #include "game.h"
 

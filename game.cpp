@@ -2,12 +2,29 @@
 #include <cassert>
 #include <iostream>
 #include <iterator>
+#include <random>
 #include <sstream>
 #include <string>
 #include <string_view>
 
+#include "types.h"
 #include "bitboard.h"
 #include "game.h"
+
+
+namespace Zobrist {
+
+// Two keys per square for the two colors, plus
+// one more key indicating it is black's turn to play.
+Key keyTable[Ncolors][Nsquares];
+Key side;
+
+inline Key key(Color c, Square sq) {
+    return keyTable[to_integral(c)][to_integral(sq)];
+}
+
+}  // namespace Zobrist
+
 
 Game::Game() {
     std::fill_n(std::begin(m_board), 16, Piece::white);
@@ -17,6 +34,25 @@ Game::Game() {
     by_color[to_integral(Color::black)] = (row_bb(Row::eight) | row_bb(Row::seven));
     m_ply = 0;
     m_player_to_move = Color::white;
+    Key key = 0;
+    for (Square sq = Square::a1; sq < Square::a3; ++sq) {
+        key ^= Zobrist::key(Color::white, sq);
+    }
+    for (Square sq = Square::a7; sq < Square::Nb; ++sq) {
+        key ^= Zobrist::key(Color::black, sq);
+    }
+}
+
+void Game::init() {
+    std::random_device rd;
+    std::mt19937 eng(rd());
+    std::uniform_int_distribution<uint32_t> dist(0, std::numeric_limits<uint32_t>::max() - 1);
+
+    std::generate(std::begin(Zobrist::keyTable), std::end(Zobrist::keyTable), [&](){
+        return dist(eng);
+    });
+
+    Zobrist::side = dist(eng);
 }
 
 void Game::turn_input(std::istream& ins) {
@@ -83,21 +119,47 @@ std::string_view Game::view() const {
 }
 
 
-void Game::apply(Action a) {
+void Game::apply(Action a, StateData& sd) {
     Square from = from_square(a);
     Square to = to_square(a);
-    Piece p = piece_at(from);
 
     assert(piece_at(from) == m_player_to_move);
     assert(piece_at(to) != m_player_to_move);
     assert(is_empty(to) || column_of(to) != column_of(from));
 
-    if (!is_empty(to))
+    // Move the StateData object
+    sd.key = this->sd->key;
+    sd.capture = false;
+    sd.prev = this->sd;
+    this->sd = &sd;
+
+    // Maybe capture a piece
+    if (!is_empty(to)) {
         remove_piece(to);
+        sd.key ^= Zobrist::key(opposite_of(m_player_to_move), to);
+        sd.capture = true;
+    }
+
+    sd.key ^= Zobrist::key(m_player_to_move, from) ^ Zobrist::key(m_player_to_move, to);
+    sd.key ^= Zobrist::side;
 
     move_piece(from, to);
     m_player_to_move = opposite_of(m_player_to_move);
     ++m_ply;
+}
+
+void Game::undo(Action a) {
+    Square to = to_square(a);
+    Square from = from_square(a);
+
+    --m_ply;
+    m_player_to_move = opposite_of(m_player_to_move);
+    move_piece(to, from);
+
+    if (sd->capture)
+        put_piece(make_piece(opposite_of(m_player_to_move)), to);
+
+    sd = sd->prev;
 }
 
 void Game::compute_valid_actions() {
@@ -107,7 +169,7 @@ void Game::compute_valid_actions() {
         Square sq = pop_lsb(pcs);
         Bitboard free_ahead = forward_bb(m_player_to_move, sq) & no_pieces();
         if (free_ahead)
-            m_valid_actions.push_back(make_action(sq, lsb(free_ahead)));//relative(m_player_to_move, Direction::up)));
+            m_valid_actions.push_back(make_action(sq, lsb(free_ahead)));
         Bitboard sides_free = attacks_bb(m_player_to_move, sq) & ~pieces(m_player_to_move);
         while (sides_free) {
             m_valid_actions.push_back(make_action(sq, pop_lsb(sides_free)));

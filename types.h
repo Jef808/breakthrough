@@ -57,6 +57,8 @@ enum class Direction {
     up_left   = left + up,
 };
 
+using Key = uint32_t;
+
 /**
  * The least significant byte stores the source square,
  * the other byte stores the destination square.

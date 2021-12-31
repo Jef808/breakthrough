@@ -8,7 +8,7 @@
 
 #include "types.h"
 #include "game.h"
-#include "agent.h"
+#include "epsilonGreedy.h"
 
 #include <chrono>
 #include <iomanip>

@@ -9,28 +9,38 @@
 #include "types.h"
 #include "bitboard.h"
 
+
+struct StateData {
+    Key key;
+    bool capture;
+    StateData* prev;
+};
+
 class Game {
 public:
     Game();
+    static void init();
     void turn_input(std::istream&);
     std::string_view view() const;
-    void apply(Action);
+    void apply(Action, StateData& sd);
+    void undo(Action a);
     void compute_valid_actions();
     const std::vector<Action>& valid_actions() const { return m_valid_actions; }
     bool is_lost() const;
     constexpr Color player_to_move() const { return m_player_to_move; }
+    constexpr Key key() const { return sd->key; }
 
     constexpr Piece piece_at(Square s) const;
     constexpr Bitboard pieces(Color c) const;
     constexpr Bitboard no_pieces() const;
     constexpr bool is_empty(Square s) const;
-    constexpr bool is_capture(Action a) const;
     constexpr int ply() const { return m_ply; }
 
 private:
     Piece m_board[Nsquares];
     Bitboard by_color[Ncolors];
     std::vector<Action> m_valid_actions;
+    StateData* sd;
     int m_ply;
     Color m_player_to_move;
 
@@ -50,9 +60,6 @@ constexpr Bitboard Game::pieces(Color c) const {
 }
 constexpr Bitboard Game::no_pieces() const {
     return ~(pieces(Color::white) | pieces(Color::black));
-}
-constexpr bool Game::is_capture(Action a) const {
-    return (!is_empty(to_square(a)) && piece_at(to_square(a)) != piece_at(from_square(a)));
 }
 inline bool Game::is_lost() const {
     return pieces(opposite_of(m_player_to_move)) & row_bb(relative(m_player_to_move, Row::one));

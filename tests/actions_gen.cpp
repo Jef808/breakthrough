@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "game.h"
-#include "agent.h"
+#include "epsilonGreedy.h"
 
 struct CmpSquaresTest {
     bool operator()(Square a, Square b) {
