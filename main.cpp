@@ -5,7 +5,7 @@
 #include "game.h"
 #include "agent.h"
 
-constexpr double epsilon = 0.1;
+constexpr double epsilon = 0.3;
 constexpr int n_iterations = 5000;
 
 int main() {

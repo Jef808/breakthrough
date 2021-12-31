@@ -31,6 +31,8 @@ private:
     std::vector<ExtAction> root_actions;
     double epsilon = 0.1;
     int n_iterations = 5000;
+
+    void setup_rootactions();
 };
 
 #endif // AGENT_H_

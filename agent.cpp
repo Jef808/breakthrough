@@ -14,7 +14,6 @@ namespace {
     std::random_device rd;
     std::mt19937 eng{rd()};
 
-
     struct TrueF {
         template<typename T>
         bool operator()(const T& t) { return true; }
@@ -72,8 +71,6 @@ double static_eval(const Game& game) {
     int our_score = 0;
     int their_score = 0;
     int lever_score = 0;
-
-    //std::cerr << game.view() << '\n';
 
     auto phalanx = [&game](Color c, Square sq) {
         return bool(shift<Direction::left>(square_bb(sq)) & game.pieces(c));
@@ -209,9 +206,7 @@ double sample(const Game& game_, Action a, int n=1) {
             game.compute_valid_actions();
             actions = game.valid_actions();
 
-            // else
             action = random_choice(actions);
-
             game.apply(action);
         }
 
@@ -221,12 +216,18 @@ double sample(const Game& game_, Action a, int n=1) {
     return ret;
 }
 
-Action Agent::best_action() {
+/**
+ * Leaves the action with the best static evaluation at index 0.
+ */
+void Agent::setup_rootactions() {
     root_actions.clear();
     std::transform(m_game.valid_actions().begin(),
                    m_game.valid_actions().end(),
                    std::back_inserter(root_actions),
                    [](auto a){ return ExtAction{a}; });
+
+    ExtAction* best_ra = &root_actions[0];
+    double best_score = 0.0;
 
     for (auto& ra : root_actions) {
         Game game = m_game;
@@ -234,68 +235,69 @@ Action Agent::best_action() {
         ra.prior = 1.0 - static_eval(game);
         ra.total_value = 0;
         ra.n_visits = 1;
+        if (ra.prior > best_score) {
+            best_ra = &ra;
+            best_score = ra.prior;
+        }
     }
 
-    auto it = std::max_element(root_actions.begin(), root_actions.end(),
-                                      [](const auto& ra, const auto& rb){ return ra.prior < rb.prior; });
-    int best_score = it->prior;
-    std::swap(root_actions[0], *it);
+    std::swap(root_actions[0], *best_ra);
+}
+
+Action Agent::best_action() {
+
+    setup_rootactions();
+
+    auto get_score = [](const auto& ra) {
+        return (ra.total_value + ra.prior) / (ra.n_visits + 1);
+    };
+
+    Color us = m_game.player_to_move();
+    Color them = opposite_of(m_game.player_to_move());
+    ExtAction* best_ra = &root_actions[0];
+    double best_score = 0.0;
 
     // If we have a win in 1
     if (best_score > 0.8) {
-        Color us = m_game.player_to_move();
         Square sq = frontmost_sq(us, m_game.pieces(us));
         return *find_if(root_actions.begin(), root_actions.end(), [&sq](const auto& ra) {
             return from_square(ra) == sq;
         });
     }
 
-    // If the opponent has an imminent threat
-    Bitboard critical = crit_rows(m_game.player_to_move()) & m_game.pieces(opposite_of(m_game.player_to_move()));
+    Bitboard critical = crit_rows(us) & m_game.pieces(them);
     if (critical) {
-        Color them = opposite_of(m_game.player_to_move());
         Square th = frontmost_sq(them, m_game.pieces(them));
         auto [found, action] = defend_critical(m_game, frontmost_sq(them, m_game.pieces(them)));
         if (found)
             return action;
     }
 
+    // To ensure that every moves get some exposure.
     for (auto& ra : root_actions) {
         ra.update(sample(m_game, ra, 20), 20);
+        if (get_score(ra) > best_score) {
+            best_score = get_score(ra);
+            best_ra = &ra;
+        }
     }
 
-    it = std::max_element(root_actions.begin(), root_actions.end(), [](const auto& ra, const auto& rb) {
-        return 0.5 * ra.total_value + 0.5 * ra.prior < 0.5 * rb.total_value + 0.5 * rb.prior;
-    });
-
-    std::swap(root_actions[0], *it);
-
-    // epsilon-greedy strategy
+    // epsilon-greedy exploitation/exploration
     for (int i=0; i<n_iterations; ++i) {
         Action action = Action::none;
-        if (m_game.ply() < 32 ? epsilon : epsilon / 2)
+        if (chance_node((m_game.ply() < 32 ? epsilon : m_game.ply() < 64 ? epsilon / 2 : epsilon / 4)))
             action = random_choice(m_game.valid_actions());
         else
-            action = root_actions[0];
+            action = *best_ra;
 
         bool reward = sample(m_game, action);
-        it = std::find(root_actions.begin(), root_actions.end(), action);
-        it->update(reward);
+        best_ra->update(reward);
 
-        auto score = [](const auto& ra) {
-            return (ra.prior + ra.total_value) / (ra.n_visits + 1.0);
-        };
-
-        if (score(*it) > score(root_actions[0]))
-            std::swap(root_actions[0], *it);
+        best_ra = &*std::max_element(root_actions.begin(), root_actions.end(), [&get_score](const auto& ra, const auto& rb) {
+            return get_score(ra) < get_score(rb);
+        });
+        best_score = get_score(*best_ra);
     }
 
-    std::cerr << "After iterating,\n";
-    for (const auto& ra : root_actions) {
-        std::cerr << string_of(ra) << " n_vis= " << ra.n_visits
-            << " val= " << ra.prior + ra.total_value << std::endl;
-    }
-    std::cerr << std::endl;
-
-    return root_actions[0];
+    return *best_ra;
 }
