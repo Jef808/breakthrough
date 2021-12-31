@@ -1,6 +1,8 @@
 types.h
+bitboards.h
 game.h
 agent.h
+bitboards.cpp
 game.cpp
 agent.cpp
 main.cpp

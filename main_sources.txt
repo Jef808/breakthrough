@@ -1,6 +1,0 @@
-types.h
-game.h
-agent.h
-game.cpp
-agent.cpp
-main.cpp
