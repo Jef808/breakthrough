@@ -34,10 +34,11 @@ constexpr Bitboard Row6 = Row1 << (5 * 8);
 constexpr Bitboard Row7 = Row1 << (6 * 8);
 constexpr Bitboard Row8 = Row1 << (7 * 8);
 
-constexpr Bitboard QueenSide   = ColA | ColB | ColC | ColD;
-constexpr Bitboard KingSide    = ColE | ColF | ColG | ColH;
-constexpr Bitboard Center      = (ColD| ColE) & (Row4 | Row5);
-
+constexpr Bitboard QueenSide           =   ColA | ColB  |  ColC | ColD;
+constexpr Bitboard KingSide            =   ColE | ColF  |  ColG | ColH;
+constexpr Bitboard Center              =   (ColD| ColE) & (Row4 | Row5);
+constexpr Bitboard BottomSide[Ncolors] = { Row2 | Row3  , Row7  | Row6 };
+constexpr Bitboard UpperSide[Ncolors]  = { Row6 | Row7  , Row3  | Row2 };
 extern Bitboard Square[Nsquares];
 extern Bitboard Attacks[Ncolors][Nsquares];
 extern Bitboard Forward[Ncolors][Nsquares];
@@ -60,6 +61,13 @@ constexpr Bitboard row_bb(Row r) {
 }
 constexpr Bitboard row_bb(Square s) {
     return row_bb(row_of(s));
+}
+
+constexpr Bitboard crit_rows(Color c) {
+    return BB::BottomSide[to_integral(c)];
+}
+constexpr Bitboard scoring_rows(Color c) {
+    return BB::UpperSide[to_integral(c)];
 }
 
 template<Direction D>
@@ -91,21 +99,27 @@ inline Bitboard forward_bb(Color c, Square sq) {
     return c == Color::white ? forward<Color::white>(square_bb(sq)) : forward<Color::black>(square_bb(sq));
 }
 
-constexpr Bitboard forward_row_bb(Color c, Square s) {
-    return c == Color::white
-        ? ~BB::Row1 << 8 * to_integral(relative(Color::white, row_of(s)))
-        : ~BB::Row1 >> 8 * to_integral(relative(Color::black, row_of(s)));
-}
+// constexpr Bitboard forward_row_bb(Color c, Square s) {
+//     return c == Color::white
+//         ? ~BB::Row1 << 8 * to_integral(relative(Color::white, row_of(s)))
+//         : ~BB::Row1 >> 8 * to_integral(relative(Color::black, row_of(s)));
+// }
 
-constexpr Bitboard adjacent_cols_bb(Square s) {
-    return shift<Direction::left>(col_bb(s)) | shift<Direction::right>(col_bb(s));
-}
+// constexpr Bitboard adjacent_cols_bb(Square s) {
+//     return shift<Direction::left>(col_bb(s)) | shift<Direction::right>(col_bb(s));
+// }
 
-template<Color C>
-constexpr Bitboard forward_span_bb(Bitboard b) {
-    return C == Color::white
-        ? shift<Direction::up_left>(b) | shift<Direction::up_right>(b)
-        : shift<Direction::down_left>(b) | shift<Direction::down_right>(b);
+// template<Color C>
+// constexpr Bitboard forward_span_bb(Bitboard b) {
+//     return C == Color::white
+//         ? shift<Direction::up_left>(b) | shift<Direction::up_right>(b)
+//         : shift<Direction::down_left>(b) | shift<Direction::down_right>(b);
+// }
+/**
+ * Bitboard representing the squares attacking a given square
+ */
+inline Bitboard attackers_bb(Color c, Square sq) {
+    return BB::Defenders[to_integral(c)][to_integral(sq)];
 }
 
 inline Bitboard span_bb(Color c, Square sq) {
@@ -114,6 +128,10 @@ inline Bitboard span_bb(Color c, Square sq) {
 
 constexpr Bitboard flip_vertical(Bitboard bb) {
     return __builtin_bswap64(bb);
+}
+
+constexpr int count(Bitboard bb) {
+    return __builtin_popcountll(bb);
 }
 
 /**

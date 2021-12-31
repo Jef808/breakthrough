@@ -7,14 +7,15 @@ class Agent {
 
         struct ExtAction {
         Action action;
-        int total_value;
+        double prior;
+        double total_value;
         int n_visits;
         explicit ExtAction(Action a)
             : action{a}, total_value{0}, n_visits{0} {}
         operator Action() const { return action; }
         //bool operator==(const Action a) { return action == a; }
-        void update(int wins, int visits = 1) {
-            total_value += wins;
+        void update(double stats, int visits = 1) {
+            total_value += stats;
             n_visits += visits;
         }
     };
