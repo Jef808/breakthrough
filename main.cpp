@@ -5,10 +5,16 @@
 #include "game.h"
 #include "agent.h"
 
+constexpr double epsilon = 0.1;
+constexpr int n_iterations = 5000;
+
 int main() {
     BB::init();
     Game game;
     Agent agent(game);
+
+    agent.set_epsilon(epsilon);
+    agent.set_n_iterations(n_iterations);
 
     while (true) {
         game.turn_input(std::cin);
