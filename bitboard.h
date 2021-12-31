@@ -4,13 +4,15 @@
 #include "types.h"
 
 #include <cstdint>
-
+#include <iosfwd>
+#include <string_view>
 
 using Bitboard = uint64_t;
 
 namespace BB {
 
 void init();
+void view(std::ostream& out, Bitboard bb, std::string_view bb_name = "");
 
 // Starting with LSB, every 8th bit is on. i.e. the first bit of each byte:
 constexpr Bitboard ColA = 0x0101010101010101;
@@ -104,6 +106,14 @@ constexpr Bitboard forward_span_bb(Bitboard b) {
     return C == Color::white
         ? shift<Direction::up_left>(b) | shift<Direction::up_right>(b)
         : shift<Direction::down_left>(b) | shift<Direction::down_right>(b);
+}
+
+inline Bitboard span_bb(Color c, Square sq) {
+    return BB::Span[to_integral(c)][to_integral(sq)];
+}
+
+constexpr Bitboard flip_vertical(Bitboard bb) {
+    return __builtin_bswap64(bb);
 }
 
 /**

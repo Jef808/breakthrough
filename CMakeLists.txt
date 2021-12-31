@@ -46,6 +46,9 @@ target_link_libraries(test_actionsgen bt agent)
 add_executable(benchmark_playouts tests/sample_benchmark.cpp)
 target_link_libraries(benchmark_playouts bt)
 
+add_executable(view_bbs tests/view_bbs.cpp)
+target_link_libraries(view_bbs bt)
+
 add_custom_target(
   bundle_actionsgen_test
   COMMAND scripts/bundler.py scripts/test_actionsgen_sources.txt

@@ -34,7 +34,7 @@ int main() {
 
     auto start = std::chrono::steady_clock::now();
 
-    for (int i=0; i<1000000; ++i) {
+    for (int i=0; i<6000; ++i) {
         Game game = game_backup;
         while (!game.is_lost()) {
             game.compute_valid_actions();
@@ -43,7 +43,7 @@ int main() {
         }
     }
 
-    std::cout << "Time taken for 1,000,000 random playouts: "
+    std::cout << "Time taken for 6,000 random playouts: "
               << std::setprecision(2)
               << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count()
               << "ms." << std::endl;
