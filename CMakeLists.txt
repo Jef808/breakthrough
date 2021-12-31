@@ -4,7 +4,7 @@ cmake_minimum_required( VERSION 3.20 )
 set( CMAKE_EXPORT_COMPILE_COMMANDS on )
 set( CMAKE_CXX_STANDARD_REQUIRED 20 )
 set( CMAKE_CXX_STANDARD 20 )
-set( CMAKE_BUILD_TYPE debug )
+set( CMAKE_BUILD_TYPE release )
 set( CMAKE_VERBOSE_MAKEFILE on )
 
 # set( CMAKE_CXX_COMPILER "/usr/local/bin/g++" )
@@ -42,6 +42,9 @@ add_custom_command(
 ############################################################
 add_executable(test_actionsgen tests/actions_gen.cpp)
 target_link_libraries(test_actionsgen bt agent)
+
+add_executable(benchmark_playouts tests/sample_benchmark.cpp)
+target_link_libraries(benchmark_playouts bt)
 
 add_custom_target(
   bundle_actionsgen_test

@@ -17,6 +17,7 @@ public:
     void apply(Action);
     void compute_valid_actions();
     const std::vector<Action>& valid_actions() const { return m_valid_actions; }
+    bool is_lost() const;
     constexpr Color player_to_move() const { return m_player_to_move; }
 
     constexpr Piece piece_at(Square s) const;
@@ -52,6 +53,9 @@ constexpr Bitboard Game::no_pieces() const {
 }
 constexpr bool Game::is_capture(Action a) const {
     return (!is_empty(to_square(a)) && piece_at(to_square(a)) != piece_at(from_square(a)));
+}
+inline bool Game::is_lost() const {
+    return pieces(opposite_of(m_player_to_move)) & row_bb(relative(m_player_to_move, Row::one));
 }
 inline void Game::remove_piece(Square s) {
     Piece& p = m_board[to_integral(s)];

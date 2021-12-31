@@ -4,20 +4,23 @@
 
 #include <algorithm>
 #include <random>
+#include <iostream>
+
 
 Agent::Agent(Game& game)
     : m_game(game)
 {}
 
-auto get_random(const std::vector<Action>& actions) {
+Action Agent::random_action() {
     static std::random_device rd;
     static std::mt19937 eng{rd()};
-    assert(!actions.empty());
 
-    std::uniform_int_distribution<> dist(0, actions.size() - 1);
-    return actions[dist(eng)];
+    auto d = m_game.valid_actions().size();
+    std::uniform_int_distribution<> dist(0, d - 1);
+
+    return m_game.valid_actions()[dist(eng)];
 }
 
 Action Agent::best_action() {
-    return get_random(m_game.valid_actions());
+
 }
