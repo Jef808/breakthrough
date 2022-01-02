@@ -1,6 +1,7 @@
 types.h
 bitboard.h
 game.h
+agentRandom.h
 epsilonGreedy.h
 bitboard.cpp
 game.cpp

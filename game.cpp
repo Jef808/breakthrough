@@ -12,6 +12,11 @@
 #include "game.h"
 
 
+namespace {
+    StateData root_sd{};
+}  // namespace
+
+
 namespace Zobrist {
 
 // Two keys per square for the two colors, plus
@@ -25,25 +30,41 @@ inline Key key(Color c, Square sq) {
 
 }  // namespace Zobrist
 
+Game::Game()
+{
+    reset();
+}
 
-Game::Game() {
+void Game::reset() {
     std::fill_n(std::begin(m_board), 16, Piece::white);
     std::fill_n(std::begin(m_board) + 16, 32, Piece::none);
     std::fill_n(std::begin(m_board) + 48, 16, Piece::black);
+    std::fill(std::begin(by_color), std::end(by_color), 0);
+
     by_color[to_integral(Color::white)] = (row_bb(Row::one) | row_bb(Row::two));
     by_color[to_integral(Color::black)] = (row_bb(Row::eight) | row_bb(Row::seven));
+
+    valid_actions_cont.clear();
+
     m_ply = 0;
     m_player_to_move = Color::white;
-    Key key = 0;
+
+    sd = &root_sd;
+    sd->capture = false;
+    sd->key = 0;
+    sd->prev = nullptr;
+
     for (Square sq = Square::a1; sq < Square::a3; ++sq) {
-        key ^= Zobrist::key(Color::white, sq);
+        sd->key ^= Zobrist::key(Color::white, sq);
     }
     for (Square sq = Square::a7; sq < Square::Nb; ++sq) {
-        key ^= Zobrist::key(Color::black, sq);
+        sd->key ^= Zobrist::key(Color::black, sq);
     }
 }
 
 void Game::init() {
+    BB::init();
+
     std::random_device rd;
     std::mt19937 eng{rd()};
 
@@ -58,7 +79,7 @@ void Game::turn_input(std::istream& ins, StateData& sd) {
     static std::string buf;
     int n_legal_moves;
     buf.clear();
-    m_valid_actions.clear();
+    valid_actions_cont.clear();
     std::getline(ins, buf);
     if (buf != "None") {
         Action move = action_of(buf);
@@ -68,7 +89,7 @@ void Game::turn_input(std::istream& ins, StateData& sd) {
     ins.ignore();
     for (int i = 0; i < n_legal_moves; ++i) {
         std::getline(ins, buf);
-        m_valid_actions.push_back(action_of(buf));
+        valid_actions_cont.push_back(action_of(buf));
     }
 }
 
@@ -133,7 +154,7 @@ void Game::apply(Action a, StateData& sd) {
     this->sd = &sd;
 
     // Maybe capture a piece
-    if (!is_empty(to)) {
+    if (pieces(opposite_of(m_player_to_move)) & square_bb(to)) {
         remove_piece(to);
         sd.key ^= Zobrist::key(opposite_of(m_player_to_move), to);
         sd.capture = true;
@@ -161,17 +182,17 @@ void Game::undo(Action a) {
     sd = sd->prev;
 }
 
-void Game::compute_valid_actions() {
+void Game::compute_valid_actions(std::vector<Action>& out) const {
     Bitboard pcs = pieces(m_player_to_move);
-    m_valid_actions.clear();
+    out.clear();
     while (pcs) {
         Square sq = pop_lsb(pcs);
         Bitboard free_ahead = forward_bb(m_player_to_move, sq) & no_pieces();
         if (free_ahead)
-            m_valid_actions.push_back(make_action(sq, lsb(free_ahead)));
+            out.push_back(make_action(sq, lsb(free_ahead)));
         Bitboard sides_free = attacks_bb(m_player_to_move, sq) & ~pieces(m_player_to_move);
         while (sides_free) {
-            m_valid_actions.push_back(make_action(sq, pop_lsb(sides_free)));
+            out.push_back(make_action(sq, pop_lsb(sides_free)));
         }
     }
 }

@@ -22,10 +22,12 @@ public:
     static void init();
     void turn_input(std::istream&, StateData& sd);
     std::string_view view() const;
+    void reset();
+
     void apply(Action, StateData& sd);
     void undo(Action a);
-    void compute_valid_actions();
-    const std::vector<Action>& valid_actions() const { return m_valid_actions; }
+    void compute_valid_actions(std::vector<Action>& out=valid_actions_cont) const;
+    const std::vector<Action>& valid_actions() const { return valid_actions_cont; }
     bool is_lost() const;
     constexpr Color player_to_move() const { return m_player_to_move; }
     constexpr Key key() const { return sd->key; }
@@ -39,7 +41,7 @@ public:
 private:
     Piece m_board[Nsquares];
     Bitboard by_color[Ncolors];
-    std::vector<Action> m_valid_actions;
+    static inline std::vector<Action> valid_actions_cont;
     StateData* sd;
     int m_ply;
     Color m_player_to_move;
@@ -65,13 +67,13 @@ inline bool Game::is_lost() const {
     return pieces(opposite_of(m_player_to_move)) & row_bb(relative(m_player_to_move, Row::one));
 }
 inline void Game::remove_piece(Square s) {
-    Piece& p = m_board[to_integral(s)];
-    by_color[to_integral(color_of(p))] ^= square_bb(s);
-    p = Piece::none;
+    Piece p = m_board[to_integral(s)];
+    by_color[to_integral(p)] ^= square_bb(s);
+    m_board[to_integral(s)] = Piece::none;
 }
 inline void Game::put_piece(Piece p, Square s) {
-    m_board[to_integral(s)] = p;
     by_color[to_integral(color_of(p))] ^= square_bb(s);
+    m_board[to_integral(s)] = p;
 }
 inline void Game::move_piece(Square from, Square to) {
     Piece p = m_board[to_integral(from)];

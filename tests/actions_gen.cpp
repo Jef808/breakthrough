@@ -1,9 +1,10 @@
 #include <cassert>
 #include <algorithm>
 #include <iostream>
+#include <random>
 
 #include "game.h"
-#include "epsilonGreedy.h"
+#include "agentRandom.h"
 
 struct CmpSquaresTest {
     bool operator()(Square a, Square b) {
@@ -38,13 +39,16 @@ void output_error(const std::vector<Action>& ga, const std::vector<Action>& ma, 
 int main() {
     std::ios_base::sync_with_stdio(false);
 
-    BB::init();
+    Game::init();
+    Game game{};
 
-    Game game;
-    Agent agent(game);
+    StateData states[max_depth];
+    StateData* sd = &states[1];
+
+    AgentRandom agent_rand(game);
 
     while (true) {
-        game.turn_input(std::cin);
+        game.turn_input(std::cin, *sd++);
 
         auto game_actions = game.valid_actions();
         game.compute_valid_actions();
@@ -58,9 +62,9 @@ int main() {
             return EXIT_FAILURE;
         }
 
-        Action action = agent.random_action();
+        Action action = agent_rand.sample();
         std::cout << string_of(action) << std::endl;
-        game.apply(action);
+        game.apply(action, *sd++);
     }
 
     return EXIT_SUCCESS;

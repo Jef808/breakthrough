@@ -8,7 +8,7 @@
 
 #include "types.h"
 #include "game.h"
-#include "epsilonGreedy.h"
+#include "agentRandom.h"
 
 #include <chrono>
 #include <iomanip>
@@ -16,34 +16,36 @@
 #include <random>
 #include <vector>
 
-using namespace std;
+constexpr int default_n_samples = 10000;
 
-Action random_action(const Game& game) {
-    static std::random_device rd;
-    static std::mt19937 eng{rd()};
 
-    auto d = game.valid_actions().size();
-    std::uniform_int_distribution<> dist(0, d - 1);
+int main(int argc, char *argv[]) {
+    Game::init();
+    Game game{};
+    StateData states[max_depth];
 
-    return game.valid_actions()[dist(eng)];
-}
+    AgentRandom agent(game);
 
-int main() {
-    BB::init();
-    Game game_backup;
+    int n_samples = default_n_samples;
+
+    if (argc > 1)
+        n_samples = std::stoi(argv[1]);
 
     auto start = std::chrono::steady_clock::now();
 
-    for (int i=0; i<6000; ++i) {
-        Game game = game_backup;
+    for (int i=0; i < n_samples; ++i) {
+        game.reset();
+        StateData* sd = &states[0];
+
         while (!game.is_lost()) {
-            game.compute_valid_actions();
-            Action a = random_action(game);
-            game.apply(a);
+            auto action = agent.sample();//random_action(game);
+            game.apply(action, *sd++);
         }
     }
 
-    std::cout << "Time taken for 6,000 random playouts: "
+    std::cout << "Time taken for "
+              << n_samples
+              << " random playouts: "
               << std::setprecision(2)
               << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count()
               << "ms." << std::endl;

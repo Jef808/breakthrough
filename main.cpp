@@ -7,16 +7,20 @@
 
 constexpr double epsilon = 0.3;
 constexpr int n_iterations = 5000;
+constexpr int n_initial_samples = 10;
 
 int main() {
-    BB::init();
+    Game::init();
+
     Game game;
     Agent agent(game);
     StateData states[max_depth];
-    StateData* sd = &states[0];
+    std::fill(std::begin(states), std::end(states), StateData{});
+    StateData* sd = &states[1];
 
     agent.set_epsilon(epsilon);
     agent.set_n_iterations(n_iterations);
+    agent.set_n_initial_samples(n_initial_samples);
 
     while (true) {
         game.turn_input(std::cin, *sd++);

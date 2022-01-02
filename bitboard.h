@@ -37,8 +37,8 @@ constexpr Bitboard Row8 = Row1 << (7 * 8);
 constexpr Bitboard QueenSide           =   ColA | ColB  |  ColC | ColD;
 constexpr Bitboard KingSide            =   ColE | ColF  |  ColG | ColH;
 constexpr Bitboard Center              =   (ColD| ColE) & (Row4 | Row5);
-constexpr Bitboard BottomSide[Ncolors] = { Row2 | Row3  , Row7  | Row6 };
-constexpr Bitboard UpperSide[Ncolors]  = { Row6 | Row7  , Row3  | Row2 };
+constexpr Bitboard BottomSide[Ncolors] = { Row2 | Row3 | Row4  , Row7  | Row6 | Row5 };
+constexpr Bitboard UpperSide[Ncolors]  = { Row5 | Row6 | Row7  , Row4 | Row3  | Row2 };
 extern Bitboard Square[Nsquares];
 extern Bitboard Attacks[Ncolors][Nsquares];
 extern Bitboard Forward[Ncolors][Nsquares];
@@ -57,7 +57,7 @@ constexpr Bitboard col_bb(Square s) {
     return BB::ColA << col_bb(column_of(s));
 }
 constexpr Bitboard row_bb(Row r) {
-    return BB::Row1 << (8 * to_integral(r));
+  return BB::Row1 << (8 * to_integral(r));
 }
 constexpr Bitboard row_bb(Square s) {
     return row_bb(row_of(s));
@@ -99,22 +99,6 @@ inline Bitboard forward_bb(Color c, Square sq) {
     return c == Color::white ? forward<Color::white>(square_bb(sq)) : forward<Color::black>(square_bb(sq));
 }
 
-// constexpr Bitboard forward_row_bb(Color c, Square s) {
-//     return c == Color::white
-//         ? ~BB::Row1 << 8 * to_integral(relative(Color::white, row_of(s)))
-//         : ~BB::Row1 >> 8 * to_integral(relative(Color::black, row_of(s)));
-// }
-
-// constexpr Bitboard adjacent_cols_bb(Square s) {
-//     return shift<Direction::left>(col_bb(s)) | shift<Direction::right>(col_bb(s));
-// }
-
-// template<Color C>
-// constexpr Bitboard forward_span_bb(Bitboard b) {
-//     return C == Color::white
-//         ? shift<Direction::up_left>(b) | shift<Direction::up_right>(b)
-//         : shift<Direction::down_left>(b) | shift<Direction::down_right>(b);
-// }
 /**
  * Bitboard representing the squares attacking a given square
  */
@@ -122,41 +106,51 @@ inline Bitboard attackers_bb(Color c, Square sq) {
     return BB::Defenders[to_integral(c)][to_integral(sq)];
 }
 
+/**
+ * Bitboard representing the cone of squares opening forward
+ */
 inline Bitboard span_bb(Color c, Square sq) {
     return BB::Span[to_integral(c)][to_integral(sq)];
 }
 
+/**
+ * Flip a bitboard accross the middle vertically
+ */
 constexpr Bitboard flip_vertical(Bitboard bb) {
     return __builtin_bswap64(bb);
 }
 
+/**
+ * Count the number of set bits in a bitboard
+ */
 constexpr int count(Bitboard bb) {
     return __builtin_popcountll(bb);
 }
 
 /**
- * Taken from Stockfish:
+ * Least significant / Most significant bit respectively
  */
-
-/// lsb() and msb() return the least/most significant bit in a non-zero bitboard
 inline Square lsb(Bitboard b) {
   assert(b);
   return Square(__builtin_ctzll(b));
 }
-
 inline Square msb(Bitboard b) {
   assert(b);
   return Square(63 ^ __builtin_clzll(b));
 }
 
-/// least_significant_square_bb() returns the bitboard of the least significant
-/// square of a non-zero bitboard. It is equivalent to square_bb(lsb(bb)).
+/**
+ * Return the bitboard of the least significant
+ * square of a non-zero bitboard.
+ */
 inline Bitboard least_significant_square_bb(Bitboard b) {
   assert(b);
   return b & -b;
 }
 
-/// pop_lsb() finds and clears the least significant bit in a non-zero bitboard
+/**
+ * Finds and clears the least significant bit in a non-zero bitboard
+ */
 inline Square pop_lsb(Bitboard& b) {
   assert(b);
   const Square s = lsb(b);
@@ -164,9 +158,10 @@ inline Square pop_lsb(Bitboard& b) {
   return s;
 }
 
-
-/// frontmost_sq() returns the most advanced square for the given color,
-/// requires a non-zero bitboard.
+/**
+ * Return the most advanced square for the given color,
+ * requires a non-zero bitboard.
+ */
 inline Square frontmost_sq(Color c, Bitboard b) {
   assert(b);
   return c == Color::white ? msb(b) : lsb(b);

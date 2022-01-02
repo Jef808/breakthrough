@@ -1,8 +1,7 @@
 types.h
 bitboard.h
 game.h
-agent.h
+agentRandom.h
 bitboard.cpp
 game.cpp
-agent.cpp
 tests/actions_gen.cpp
