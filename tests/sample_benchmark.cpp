@@ -1,14 +1,7 @@
-// #undef _GLIBCXX_DEBUG // disable run-time bound checking, etc
-// #pragma GCC optimize("Ofast,inline") // Ofast = O3,fast-math,allow-store-data-races,no-protect-parens
-
-// #pragma GCC target("bmi,bmi2,lzcnt,popcnt") // bit manipulation
-// #pragma GCC target("movbe") // byte swap
-// #pragma GCC target("aes,pclmul,rdrnd") // encryption
-// #pragma GCC target("avx,avx2,f16c,fma,sse3,ssse3,sse4.1,sse4.2") // SIMD
-
 #include "types.h"
 #include "game.h"
 #include "agentRandom.h"
+#include "mcts.h"
 
 #include <chrono>
 #include <iomanip>
@@ -16,35 +9,54 @@
 #include <random>
 #include <vector>
 
-constexpr int default_n_samples = 10000;
 
+constexpr int default_n_playouts = 10000;
+
+void playout_agent_random(Game& game, AgentRandom& agent) {
+  StateData states[max_depth], *sd = &states[0];
+
+  while (!game.is_lost()) {
+    auto action = agent.sample();
+    game.apply(action, *sd++);
+  }
+}
 
 int main(int argc, char *argv[]) {
     Game::init();
     Game game{};
     StateData states[max_depth];
-
     AgentRandom agent(game);
-
-    int n_samples = default_n_samples;
-
-    if (argc > 1)
-        n_samples = std::stoi(argv[1]);
+    int n_playouts = argc > 1 ? std::stoi(argv[1]) : default_n_playouts;
 
     auto start = std::chrono::steady_clock::now();
 
-    for (int i=0; i < n_samples; ++i) {
+    for (int i=0; i < n_playouts; ++i) {
         game.reset();
-        StateData* sd = &states[0];
-
-        while (!game.is_lost()) {
-            auto action = agent.sample();//random_action(game);
-            game.apply(action, *sd++);
-        }
+        playout_agent_random(game, agent);
     }
 
-    std::cout << "Time taken for "
-              << n_samples
+    std::cout << "\n    Agent Random:\n Time taken for "
+              << n_playouts
+              << " random playouts: "
+              << std::setprecision(2)
+              << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count()
+              << "ms." << std::endl;
+
+    start = std::chrono::steady_clock::now();
+
+    Mcts mcts(game);
+
+    game.reset();
+    std::vector<Action> actions;
+    game.compute_valid_actions(actions);
+    const int n_playouts_per_actions = n_playouts / actions.size();
+
+    for (int i=0; i<actions.size(); ++i) {
+      mcts.sample(actions[i], n_playouts_per_actions);
+    }
+
+    std::cout << "\n    Agent Mcts:\n Time taken for "
+              << n_playouts_per_actions * actions.size()
               << " random playouts: "
               << std::setprecision(2)
               << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count()

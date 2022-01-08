@@ -44,8 +44,6 @@ void Game::reset() {
     by_color[to_integral(Color::white)] = (row_bb(Row::one) | row_bb(Row::two));
     by_color[to_integral(Color::black)] = (row_bb(Row::eight) | row_bb(Row::seven));
 
-    valid_actions_cont.clear();
-
     m_ply = 0;
     m_player_to_move = Color::white;
 
@@ -75,11 +73,12 @@ void Game::init() {
     Zobrist::side = eng();
 }
 
-void Game::turn_input(std::istream& ins, StateData& sd) {
+void Game::turn_input(std::istream& ins, StateData& sd, bool store_actions) {
     static std::string buf;
     int n_legal_moves;
     buf.clear();
-    valid_actions_cont.clear();
+    m_action_buffer.clear();
+
     std::getline(ins, buf);
     if (buf != "None") {
         Action move = action_of(buf);
@@ -89,7 +88,8 @@ void Game::turn_input(std::istream& ins, StateData& sd) {
     ins.ignore();
     for (int i = 0; i < n_legal_moves; ++i) {
         std::getline(ins, buf);
-        valid_actions_cont.push_back(action_of(buf));
+        if (store_actions)
+            m_action_buffer.push_back(action_of(buf));
     }
 }
 
@@ -182,6 +182,12 @@ void Game::undo(Action a) {
     sd = sd->prev;
 }
 
+/**
+ * Populate @out with all legal actions.
+ *
+ * Does not check if game is already won so
+ * only call after checking for a win somewhere
+ */
 void Game::compute_valid_actions(std::vector<Action>& out) const {
     Bitboard pcs = pieces(m_player_to_move);
     out.clear();

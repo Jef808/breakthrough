@@ -4,7 +4,7 @@ cmake_minimum_required( VERSION 3.20 )
 set( CMAKE_EXPORT_COMPILE_COMMANDS on )
 set( CMAKE_CXX_STANDARD_REQUIRED 20 )
 set( CMAKE_CXX_STANDARD 20 )
-set( CMAKE_BUILD_TYPE debug )
+set( CMAKE_BUILD_TYPE release )
 set( CMAKE_VERBOSE_MAKEFILE on )
 
 #add_compile_options("-fsanitize=address")
@@ -18,10 +18,10 @@ add_library(bt game.cpp bitboard.cpp)
 target_include_directories(bt PUBLIC ${breakthrough_dir})
 
 add_library(epsilonGreedy epsilonGreedy.cpp)
-target_link_libraries(epsilonGreedy bt)
+#target_link_libraries(epsilonGreedy bt)
 
 add_library(mcts mcts.cpp)
-target_link_libraries(mcts bt)
+#target_link_libraries(mcts bt)
 
 add_executable(main main.cpp)
 target_link_libraries(main bt epsilonGreedy)
@@ -46,6 +46,12 @@ add_custom_command(
 add_executable(arena_agentGreedy arena/epsilonGreedyvsRandom.cpp)
 target_link_libraries(arena_agentGreedy bt epsilonGreedy)
 
+add_executable(arena_mcts arena/mctsVsRandom.cpp)
+target_link_libraries(arena_mcts bt mcts)
+
+add_executable(arena_mctsVsEpsilonGreedy arena/mctsVsAgentGreedy.cpp)
+target_link_libraries(arena_mctsVsEpsilonGreedy bt mcts epsilonGreedy)
+
 ############################################################
 # Tests
 ############################################################
@@ -53,13 +59,16 @@ add_executable(test_actionsgen tests/actions_gen.cpp)
 target_link_libraries(test_actionsgen bt epsilonGreedy)
 
 add_executable(benchmark_playouts tests/sample_benchmark.cpp)
-target_link_libraries(benchmark_playouts bt epsilonGreedy)
+target_link_libraries(benchmark_playouts bt mcts)
 
 add_executable(view_bbs tests/view_bbs.cpp)
 target_link_libraries(view_bbs bt)
 
 add_executable(do_undo tests/do_undo.cpp)
 target_link_libraries(do_undo bt)
+
+add_executable(test-mcts tests/mcts_test.cpp)
+target_link_libraries(test-mcts bt mcts)
 
 add_custom_target(
   bundle_actionsgen_test
@@ -74,3 +83,4 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E create_symlink ${data_dir} data
   COMMAND ${CMAKE_COMMAND} -E create_symlink ${scripts_dir} scripts
 )
+

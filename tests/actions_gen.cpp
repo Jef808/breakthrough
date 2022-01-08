@@ -45,14 +45,15 @@ int main() {
     StateData states[max_depth];
     StateData* sd = &states[1];
 
+    std::vector<Action> my_actions;
+
     AgentRandom agent_rand(game);
 
     while (true) {
-        game.turn_input(std::cin, *sd++);
+        game.turn_input(std::cin, *sd++, true);
 
         auto game_actions = game.valid_actions();
-        game.compute_valid_actions();
-        auto my_actions = game.valid_actions();
+        game.compute_valid_actions(my_actions);
 
         std::sort(game_actions.begin(), game_actions.end(), CmpActionsTest{});
         std::sort(my_actions.begin(), my_actions.end(), CmpActionsTest{});

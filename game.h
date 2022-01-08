@@ -20,17 +20,20 @@ class Game {
 public:
     Game();
     static void init();
-    void turn_input(std::istream&, StateData& sd);
+    void turn_input(std::istream&, StateData& sd, bool store_actions=false);
     std::string_view view() const;
     void reset();
 
     void apply(Action, StateData& sd);
     void undo(Action a);
-    void compute_valid_actions(std::vector<Action>& out=valid_actions_cont) const;
-    const std::vector<Action>& valid_actions() const { return valid_actions_cont; }
+    void compute_valid_actions(std::vector<Action>& out) const;
     bool is_lost() const;
+
+    std::vector<Action>& valid_actions() { return m_action_buffer; }
     constexpr Color player_to_move() const { return m_player_to_move; }
     constexpr Key key() const { return sd->key; }
+    constexpr StateData* get_sd() { return sd; }
+    void set_sd(StateData* new_sd) { sd = new_sd; }
 
     constexpr Piece piece_at(Square s) const;
     constexpr Bitboard pieces(Color c) const;
@@ -41,10 +44,10 @@ public:
 private:
     Piece m_board[Nsquares];
     Bitboard by_color[Ncolors];
-    static inline std::vector<Action> valid_actions_cont;
     StateData* sd;
     int m_ply;
     Color m_player_to_move;
+    std::vector<Action> m_action_buffer;
 
     void remove_piece(Square);
     void put_piece(Piece, Square);

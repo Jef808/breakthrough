@@ -17,21 +17,23 @@ int main() {
     std::fill(std::begin(actions), std::end(actions), Action::none);
     Action* pa = &actions[1];
 
+    std::vector<Action> action_buffer;
+
     std::random_device rd;
     std::mt19937 eng{rd()};
 
     while (!game.is_lost()) {
         std::cout << game.view() << '\n'
-                  << "Press N to play a random action, press P to undo an action."
+                  << "Press N to play a random action, P to undo an action, and Q to quit."
                   << std::endl;
         char ch = '\0';
         std::cin >> ch;
         std::cin.ignore();
 
         if (ch == 'N' || ch == 'n') {
-            game.compute_valid_actions();
-            std::uniform_int_distribution<> dist(0, game.valid_actions().size() - 1);
-            *pa = game.valid_actions()[dist(eng)];
+            game.compute_valid_actions(action_buffer);
+            std::uniform_int_distribution<> dist(0, action_buffer.size() - 1);
+            *pa = action_buffer[dist(eng)];
 
             game.apply(*pa++, *sd++);
         }
@@ -42,6 +44,9 @@ int main() {
             }
             else
                 game.undo(*(--pa));
+        }
+        else if (ch == 'Q' || ch == 'q') {
+            return EXIT_SUCCESS;
         }
     }
 
