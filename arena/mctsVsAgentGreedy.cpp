@@ -55,11 +55,13 @@ int main(int argc, char *argv[]) {
             if (game.player_to_move() == mcts_color) {
                 auto start = std::chrono::steady_clock::now();
                 action = mcts.best_action();
-                time_mcts += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
+                time_mcts += std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - start).count();
             } else {
                 auto start = std::chrono::steady_clock::now();
                 action = agent.best_action();
-                time_greedy += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
+                time_greedy += std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - start).count();
             }
 
             game.apply(action, *sd++);

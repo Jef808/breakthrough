@@ -39,7 +39,8 @@ int main(int argc, char *argv[]) {
               << n_playouts
               << " random playouts: "
               << std::setprecision(2)
-              << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count()
+              << std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - start).count()
               << "ms." << std::endl;
 
     start = std::chrono::steady_clock::now();
@@ -59,6 +60,7 @@ int main(int argc, char *argv[]) {
               << n_playouts_per_actions * actions.size()
               << " random playouts: "
               << std::setprecision(2)
-              << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count()
+              << std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - start).count()
               << "ms." << std::endl;
 }

@@ -49,7 +49,8 @@ int main(int argc, char *argv[]) {
             if (game.player_to_move() == mcts_color) {
                 auto start = std::chrono::steady_clock::now();
                 action = mcts.best_action();
-                time += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
+                time += std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - start).count();
             }
             else {
                 action = random.best_action();

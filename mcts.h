@@ -7,6 +7,7 @@
 #include <iosfwd>
 #include <string_view>
 #include <vector>
+#include <map>
 #include <unordered_map>
 
 
@@ -41,11 +42,13 @@ public:
     double sample(Action action, int count=1, bool trace=false);
     Action best_action();
     void reset(Game& game);
+    void update_history();
 
     void set_n_iterations(int n);
     void set_exp_cst(double c);
     void set_n_init_samples(int n);
-    void write_graphviz(std::string_view fn);
+    void write_graphviz(std::ostream&, int n_nodes_max=-1);
+    void write_json_tree(std::ostream&);
     void print_counters(std::ostream&) const;
     void print_root_actions(std::ostream&);
     void reset_counters();
@@ -66,15 +69,17 @@ protected:
     void undo();
     bool is_terminal(const Node&) const;
 
-    void recurse_graphviz(std::ostream&, Node& node);
+    void recurse_json_tree(std::ostream&, Node&, int, int&, std::map<Key, int>&);
+    void recurse_graphviz(std::ostream&, Node& node, int& n_nodes, std::map<Key, int>& id_map, int n_nodes_max);
 
     Game& m_game;
 
 private:
-    std::vector<Action> m_actions_buffer;
     StateData m_states[max_depth], *sd = &m_states[0];
     Node* m_nodes[max_depth], **nn = &m_nodes[0];
     Edge* m_edges[max_depth], **ee = &m_edges[0];
+    std::vector<Action> m_actions_buffer;
+    Edge* m_history[max_depth], **hh = &m_history[0];
 
     double exp_cst = 1.4;
     int n_initial_samples = 1;

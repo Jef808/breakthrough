@@ -13,6 +13,7 @@
 struct StateData {
     Key key;
     bool capture;
+    Action action;
     StateData* prev;
 };
 
@@ -21,25 +22,25 @@ public:
     Game();
     static void init();
     void turn_input(std::istream&, StateData& sd, bool store_actions=false);
-    std::string_view view() const;
+    [[nodiscard]] std::string_view view(Action=Action::none, bool raw=false) const;
     void reset();
 
     void apply(Action, StateData& sd);
     void undo(Action a);
     void compute_valid_actions(std::vector<Action>& out) const;
-    bool is_lost() const;
+    [[nodiscard]] bool is_lost() const;
 
     std::vector<Action>& valid_actions() { return m_action_buffer; }
-    constexpr Color player_to_move() const { return m_player_to_move; }
-    constexpr Key key() const { return sd->key; }
+    [[nodiscard]] constexpr Color player_to_move() const { return m_player_to_move; }
+    [[nodiscard]] constexpr Key key() const { return sd->key; }
     constexpr StateData* get_sd() { return sd; }
     void set_sd(StateData* new_sd) { sd = new_sd; }
 
-    constexpr Piece piece_at(Square s) const;
-    constexpr Bitboard pieces(Color c) const;
-    constexpr Bitboard no_pieces() const;
-    constexpr bool is_empty(Square s) const;
-    constexpr int ply() const { return m_ply; }
+    [[nodiscard]] constexpr Piece piece_at(Square s) const;
+    [[nodiscard]] constexpr Bitboard pieces(Color c) const;
+    [[nodiscard]] constexpr Bitboard no_pieces() const;
+    [[nodiscard]] constexpr bool is_empty(Square s) const;
+    [[nodiscard]] constexpr int ply() const { return m_ply; }
 
 private:
     Piece m_board[Nsquares];

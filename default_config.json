@@ -1,0 +1,9 @@
+{
+    "iterations": 600,
+    "exp_cst": 1.0,
+    "init_samples": 1,
+    "dump_tree": true,
+    "jsontree_datadir": "view/data/jsontree",
+    "jsontree_fn": "jsontree_ply_",
+    "max_nodes": -1
+}

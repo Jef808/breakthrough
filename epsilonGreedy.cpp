@@ -12,9 +12,13 @@
 #include <iostream>
 
 
-/// Globals
-std::random_device rd;
-std::mt19937 eng{rd()};
+namespace {
+
+    /// Globals
+    std::random_device rd;
+    std::mt19937 eng{rd()};
+
+}  // namespace
 
 struct TrueF {
     template<typename T>
@@ -96,7 +100,8 @@ double static_eval(const Game& game) {
     };
     auto protected_lever = [&game](Color c, Square sq) {
         Bitboard lever = attacks_bb(c, sq) & game.pieces(c);
-        return count(attacks_bb(c, sq) & game.pieces(c)) >= count(attacks_bb(opposite_of(c), sq) & game.pieces(opposite_of(c)));
+        return count(attacks_bb(c, sq) & game.pieces(c))
+            >= count(attacks_bb(opposite_of(c), sq) & game.pieces(opposite_of(c)));
     };
 
     while (ours && fastest_win_us > 1) {
@@ -134,8 +139,9 @@ double static_eval(const Game& game) {
     double material_score = 0.5 + (my_count - their_count) / (2.0 * (my_count + their_count));
     double our_perf_score = 3 * my_count;
     double their_perf_score = 3 * their_count;
-    double score = 0.5 + (2.0 * our_score - our_perf_score) / (4.0 * our_perf_score) - (2.0 * their_score - their_perf_score) / (4.0 * their_perf_score);
     double dlever_score = 0.5  + (lever_score + 16.0) / 16.0;
+    double score = (0.5 + (2.0 * our_score - our_perf_score) / (4.0 * our_perf_score)
+                    - (2.0 * their_score - their_perf_score) / (4.0 * their_perf_score));
 
     if (fastest_win_them == 4)
         return 0.33 * 0.35 + 0.33 * material_score + 0.33 * score;
@@ -215,9 +221,9 @@ Action Agent::defend_critical(Square th) {
     Bitboard attackers = attackers_bb(us, th) & m_game.pieces(us);
     if (attackers) {
         if (count(attackers) - count(attackers_bb(them, th) & m_game.pieces(them)) > 0) {
-            Action action = random_choice_with_predicate(root_actions, [&th]
-                                                         (Action a){ return to_square(a) == th; }).second;
-            return action;
+            return random_choice_with_predicate(
+                root_actions,
+                [&th](Action a){ return to_square(a) == th; }).second;
         }
     }
 
@@ -230,8 +236,9 @@ Action Agent::defend_critical(Square th) {
             ? attacks<Color::black>(forward_free)
             : attacks<Color::white>(forward_free);
         if (!(prot & m_game.pieces(us))) {
-            auto [found, action] = random_choice_with_predicate(root_actions, [&prot]
-                                                                (Action a){ return square_bb(to_square(a)) & prot; });
+            auto [found, action] = random_choice_with_predicate(
+                root_actions,
+                [&prot](Action a){ return square_bb(to_square(a)) & prot; });
             if (found)
                 return action;
 
@@ -253,8 +260,9 @@ Action Agent::defend_critical(Square th) {
                 continue;
 
             ++n_open_diags;
-            auto [found, action] = random_choice_with_predicate(root_actions, [&diags_prot]
-                                                                    (Action a){ return square_bb(to_square(a)) & diags_prot; });
+            auto [found, action] = random_choice_with_predicate(
+                root_actions,
+                [&diags_prot](Action a){ return square_bb(to_square(a)) & diags_prot; });
             if (found)
                 _action = action;
 
@@ -268,8 +276,6 @@ Action Agent::defend_critical(Square th) {
         if (safe && _action != Action::none)
             return _action;
     }
-
-    std::cerr << "Threat is unsafe! Looking for a runner" << std::endl;
 
     // If we didn't find a counter for the critical threat, we desperately try to find a quicker win!
     Bitboard runners = row_bb(row_of(frontmost_sq(us, m_game.pieces(us)))) & m_game.pieces(us);

@@ -9,6 +9,7 @@
 #include <iostream>
 #include <string>
 #include <string_view>
+#include <map>
 #include <sstream>
 #include <fstream>
 #include <random>
@@ -109,6 +110,30 @@ Action Mcts::best_action() {
 }
 
 /**
+ * Record the last two actions that were played into the history stack.
+ */
+void Mcts::update_history() {
+    Action prev_action = m_game.get_sd()->action;
+
+    // If this is not the initial root, track the move history
+    if (prev_action != Action::none) {
+        Node* prev = get_node(m_game.get_sd()->prev->key);
+
+        assert(prev->visits > 0);
+
+        Edge* edge = &*std::find(prev->children.begin(), prev->children.end(), prev_action);
+        *hh++ = edge;
+
+        prev_action = m_game.get_sd()->prev->action;
+        if (prev_action != Action::none) {
+            prev = get_node(m_game.get_sd()->prev->prev->key);
+            edge = &*std::find(prev->children.begin(), prev->children.end(), prev_action);
+            *hh++ = edge;
+        }
+    }
+}
+
+/**
  * Reset the tree pointers, store the current game
  * at its base and expand populate its children if needed
  */
@@ -125,8 +150,10 @@ void Mcts::setup_root() {
         expand(*m_nodes[0]);
 
     nn = &m_nodes[1];
-    ee = &m_edges[0];
+    ee = &m_edges[1];
     sd = &m_states[1];
+
+    update_history();
 }
 
 /**
@@ -331,47 +358,128 @@ void Mcts::undo() {
     --sd;
 }
 
-std::string_view string_of(const Edge& edge) {
-    static std::string buf;
-    std::stringstream ss;
-
-    ss << string_of(edge.action) << ": " << edge.total << " / " << edge.visits;
-
-    buf = ss.str();
-    return buf;
+std::ostream& operator<<(std::ostream& out, const Edge& edge) {
+    return out << string_of(edge.action);
 }
 
-void Mcts::recurse_graphviz(std::ostream& out, Node& node) {
-    for (auto& e : node.children) {
+void Mcts::recurse_graphviz(std::ostream& out, Node& node, int& n_nodes, std::map<Key, int>& id_map, int n_nodes_max) {
+    // Only draw n_nodes_max nodes
+    if (n_nodes_max != -1 && n_nodes > n_nodes_max)
+        return;
 
+    int parent_id = id_map[node.key];
+
+    for (auto& e : node.children) {
         // Only draw expanded nodes
         if (e.visits == 0)
             continue;
 
         apply(e);
 
-        out << node.key << " -> " << current_node().key
-            << " [label=\"" << string_of(e) << "\"]\n";
-        recurse_graphviz(out, current_node());
+        int& _id = id_map[current_node().key];
+
+        // Only generate a new id and register a new node in the dot file
+        // when the node's key is not already found in id_map
+        if (!_id) {
+            out << std::to_string(_id = ++n_nodes)
+                << " [label=\"" << e << "\""
+                << " xlabel=\"" << m_game.view(e.action) << "\"]\n";
+        }
+
+        // Generate the link in any case
+        out << parent_id << " -> " << _id << '\n';
+
+        recurse_graphviz(out, current_node(), n_nodes, id_map, n_nodes_max);
 
         undo();
     }
 }
 
-void Mcts::write_graphviz(std::string_view fn) {
-    std::ofstream out{ fn.data() };
-    if (!out) {
-        std::cerr << "Failed to open " << fn.data();
-        return;
+void Mcts::recurse_json_tree(std::ostream& out, Node& node, int ply, int& node_count, std::map<Key, int>& id_map) {
+    int parent_id = id_map[node.key];
+
+    out << "[";
+
+    size_t n_visited_children = std::count_if(node.children.begin(), node.children.end(), [](const auto& c) {
+        return c.visits != 0;
+    });
+    size_t counter = 0;
+
+    for (auto & e : node.children) {
+        // Only draw edges that have been visited
+        if (e.visits == 0)
+            continue;
+
+        ++counter;
+
+        out << "{"; apply(e);
+
+        int& _id = id_map[current_node().key];
+        if (!_id) _id = ++node_count;
+
+        out << R"("id": )"     << std::to_string(_id = ++node_count) << ", "
+            << R"("name": ")"  << e << R"(", )"
+            << R"("str": ")"   << m_game.view(e.action, true) << R"(", )"
+            << R"("total": )"  << e.total << ", "
+            << R"("visits": )" << e.visits << ", "
+            << R"("ply": )"    << ply << ", "
+            << R"("children": )";
+
+        recurse_json_tree(out, current_node(), ply + 1, node_count, id_map);
+
+        undo(); out << "}";
+
+        // Only write a comma if there are more (visited!) siblings left
+        if (counter < n_visited_children)
+            out << ",";
     }
 
-    m_game.reset();
-    setup_root();
+    out << "]";
+}
+
+void Mcts::write_json_tree(std::ostream& out) {
+    assert(m_game.key() == current_node().key);
+    assert(current_node() == root());
+
+    static int node_count = 0;
+    static std::map<Key, int> id_map;
+    int root_id = (id_map[root().key] = ++node_count);
+
+    int id = id_map[root().key];
+    if (!id) id = ++node_count;
+
+    double root_total = std::accumulate(root().children.begin(), root().children.end(), 0.0, [&](double s, const Edge& e) {
+        return s + e.total;
+    });
+
+    out << '{'
+        << R"("id": )"              << id << ", "
+        << R"("name": "Root: Ply )" << m_game.ply() << R"(", )"
+        << R"("str": ")"            << m_game.view(Action::none, true) << R"(", )"
+        << R"("total": )"           << root_total << ", "
+        << R"("ply": )"             << m_game.ply() << ", "
+        << R"("visits": )"          << root().visits << ", "
+        << R"("children": )";
+
+    recurse_json_tree(out, current_node(), m_game.ply() + 1, node_count, id_map);
+
+    out << "}" << std::endl;
+}
+
+void Mcts::write_graphviz(std::ostream& out, int n_nodes_max) {
+    assert(m_game.key() == current_node().key);
+    assert(current_node() == root());
+
+    int n_nodes = 0;
+    std::map<Key, int> id_map;
+    int root_id = (id_map[root().key] = ++n_nodes);
 
     out << "digraph {\n  "
-        << root().key << " [label=\"root\"]\n";
+        << root_id
+        << " [label=\"Root Ply " << m_game.ply() << "\""
+        << " xlabel=\"" << m_game.view() << "\"]\n";
 
-    recurse_graphviz(out, current_node());
+    recurse_graphviz(out, current_node(), n_nodes, id_map, n_nodes_max);
 
     out << '}' << std::endl;
 }
@@ -392,6 +500,6 @@ void Mcts::reset_counters() {
 
 void Mcts::print_root_actions(std::ostream& out) {
     for (auto e : current_node().children) {
-        out << string_of(e) << std::endl;
+        out << e << std::endl;
     }
 }

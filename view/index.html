@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xml:lang="en" lang="en">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html">
+        <meta charset="UTF-8">
+        <style>
+         .node circle {
+             fill: #fff;
+             stroke: steelblue;
+             stroke-width: 3px;
+         }
+         .node text {
+             font: 12px sans-serif;
+         }
+         .link {
+             fill: none;
+             stroke: #ccc;
+             stroke-width: 2px;
+         }
+         .shadowbox {
+             width: 18em;
+             border: 1px solid #333;
+             box-shadow: 8px 8px 5px #444;
+             padding: 8px 12px;
+             /* background-image: linear-gradient(180deg, #fff, #ddd, 40%, #ccc); */
+             background-image: linear-gradient(254deg, #ff4004, #aaccee, 40%, #bbddee);
+             float: right;
+             font-size: 130%;
+         }
+         .boardStr {
+             width: 50%;
+             padding-left: 3em;
+             padding-right: 4em;
+         }
+        </style>
+        <!-- load the d3.js library -->
+        <script src="https://d3js.org/d3.v7.min.js"></script>
+    </head>
+    <body>
+        <div id="boardContainer" class="shadowbox">
+            <p>Current board:</p>
+            <pre class="boardStr"></pre>
+            <div id="navigatorContainer" class="boardNavigator">
+                <button id="prevPly">Undo</button>
+                <button id="nextPly">Next</button>
+            </div>
+        </div>
+        <div id="svgContainer"></div>
+        <script src="scripts/tidytree.js"></script>
+    </body>
+</html>

@@ -49,6 +49,7 @@ void Game::reset() {
 
     sd = &root_sd;
     sd->capture = false;
+    sd->action = Action::none;
     sd->key = 0;
     sd->prev = nullptr;
 
@@ -66,9 +67,13 @@ void Game::init() {
     std::random_device rd;
     std::mt19937 eng{rd()};
 
-    for (int i=0; i<Ncolors; ++i)
-        for (int j=0; j<Nsquares; ++j)
-            Zobrist::keyTable[i][j] = eng();
+    for (auto& i : Zobrist::keyTable)
+        for (unsigned int& j : i)
+            j = eng();
+
+    // for (int i=0; i<Ncolors; ++i)
+    //     for (int j=0; j<Nsquares; ++j)
+    //         Zobrist::keyTable[i][j] = eng();
 
     Zobrist::side = eng();
 }
@@ -112,18 +117,28 @@ std::ostream& operator<<(std::ostream& out, Color player) {
     }
 }
 
-std::string_view Game::view() const {
+
+enum class StringT { Raw, Rich };
+
+template<StringT>
+std::string_view get_string(const Game& game, Action action);
+
+template<>
+std::string_view get_string<StringT::Rich>(const Game& game, Action action) {
     static std::string view_buf;
     std::ostringstream out;
 
-    out << "\n            ply " << m_ply << "\n       "
-        << m_player_to_move
+    out << "\n            ply: " << game.ply() << "\n       "
+        << game.player_to_move()
         << " to play\n";
+    if (action != Action::none)
+        out << "       Last played: " << string_of(action) << "\n";
+    out << '\n';
 
     for (int r = to_integral(Row::eight); r >= 0; --r) {
         out << r + 1 << "  ";
         for (Square sq = square_at(Column::a, Row(r)); sq <= square_at(Column::h, Row(r)); ++sq) {
-            out << piece_at(sq);
+            out << game.piece_at(sq);
         }
         out << '\n';
     }
@@ -138,6 +153,47 @@ std::string_view Game::view() const {
     return view_buf;
 }
 
+template<>
+std::string_view get_string<StringT::Raw>(const Game& game, Action action) {
+    static std::string view_buf;
+    std::ostringstream out;
+
+    out << R"(\n            ply: )" << game.ply() << R"(\n       )"
+        << game.player_to_move()
+        << R"( to play\n)";
+    if (action != Action::none)
+        out << "       Last played: " << string_of(action) << R"(\n)";
+    out << R"(\n)";
+
+    for (int r = to_integral(Row::eight); r >= 0; --r) {
+        out << r + 1 << "  ";
+        for (Square sq = square_at(Column::a, Row(r)); sq <= square_at(Column::h, Row(r)); ++sq) {
+            out << game.piece_at(sq);
+        }
+        out << R"(\n)";
+    }
+    out << "   ";
+    for (int c = 0; c < width; ++c) {
+        char ch = c + 97;
+        out << ' ' << ch << ' ';
+    }
+    out << R"(\n)";
+
+    view_buf = out.str();
+    return view_buf;
+}
+
+/**
+ * Generate a view of a string representation of the board.
+ *
+ * Optionally write @action in the header to indicate the last
+ * action played.
+ */
+std::string_view Game::view(Action action, bool raw) const {
+    return raw ? get_string<StringT::Raw>(*this, action)
+               : get_string<StringT::Rich>(*this, action);
+}
+
 
 void Game::apply(Action a, StateData& sd) {
     Square from = from_square(a);
@@ -150,6 +206,7 @@ void Game::apply(Action a, StateData& sd) {
     // Move the StateData object
     sd.key = this->sd->key;
     sd.capture = false;
+    sd.action = a;
     sd.prev = this->sd;
     this->sd = &sd;
 

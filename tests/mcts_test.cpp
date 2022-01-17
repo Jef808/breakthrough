@@ -3,6 +3,7 @@
 #include "types.h"
 #include "agentRandom.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -66,7 +67,8 @@ public:
             undo();
         }
 
-        write_graphviz(graphviz_fn);
+        std::ofstream ofs{ graphviz_fn };
+        write_graphviz(ofs);
     }
 
     bool interactive_test()
